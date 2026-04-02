@@ -1,6 +1,6 @@
+import "@/lib/ensure-localStorage-polyfill-init";
+
 import type React from "react";
-import { AdminSidebar } from "@/components/admin/admin-sidebar";
-import { SidebarProvider } from "@/components/admin/sidebar-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { Toaster } from "sonner";
 import "./globals.css";
