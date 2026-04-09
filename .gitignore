@@ -45,3 +45,4 @@ next-env.d.ts
 .env*.local
 bun.lock
 /.pnpm-store/
+user-clerk-export.js

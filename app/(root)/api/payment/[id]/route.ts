@@ -4,10 +4,9 @@ import Payment from "@/lib/models/payment.model";
 
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  const { params } = context;
-  const id = params.id;
+  const { id } = await context.params;
 
   try {
     await connectToDatabase();

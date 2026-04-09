@@ -7,9 +7,10 @@ import User from "@/lib/models/user.model";
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { reviewId: string } }
+  { params }: { params: Promise<{ reviewId: string }> }
 ) {
   try {
+    const { reviewId } = await params;
     await connectToDatabase();
     const { userId } = await auth();
 
@@ -20,7 +21,7 @@ export async function DELETE(
       );
     }
 
-    const review = await Review.findById(params.reviewId);
+    const review = await Review.findById(reviewId);
 
     if (!review) {
       return NextResponse.json({ error: "Review not found" }, { status: 404 });
@@ -50,7 +51,7 @@ export async function DELETE(
       }
     }
 
-    await Review.findByIdAndDelete(params.reviewId);
+    await Review.findByIdAndDelete(reviewId);
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -64,9 +65,10 @@ export async function DELETE(
 
 export async function GET(
   request: Request,
-  { params }: { params: { reviewId: string } }
+  { params }: { params: Promise<{ reviewId: string }> }
 ) {
   try {
+    const { reviewId } = await params;
     await connectToDatabase();
 
     // Verify user is authenticated
@@ -85,7 +87,7 @@ export async function GET(
     }
 
     // Find the review and populate the user field
-    const review = await Review.findById(params.reviewId).populate(
+    const review = await Review.findById(reviewId).populate(
       "user",
       "firstName lastName"
     );

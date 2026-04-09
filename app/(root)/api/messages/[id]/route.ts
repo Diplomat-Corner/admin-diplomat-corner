@@ -4,11 +4,12 @@ import Message, { IMessage } from "@/lib/models/message.model";
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await connectToDatabase();
-    const message = await Message.findByIdAndDelete(params.id);
+    const message = await Message.findByIdAndDelete(id);
 
     if (!message) {
       return NextResponse.json(
@@ -32,9 +33,10 @@ export async function DELETE(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await connectToDatabase();
     const body = await request.json();
     const { action } = body;
@@ -58,7 +60,7 @@ export async function PATCH(
     }
 
     const message = await Message.findByIdAndUpdate(
-      params.id,
+      id,
       { $set: update },
       { new: true }
     );

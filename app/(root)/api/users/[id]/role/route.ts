@@ -5,7 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -41,8 +41,10 @@ export async function PATCH(
       );
     }
 
+    const { id } = await params;
+
     // Find user by ID
-    const user = await User.findById(params.id);
+    const user = await User.findById(id);
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });

@@ -13,10 +13,9 @@ interface ApiResponse {
 // PATCH handler for status updates
 export async function PATCH(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse>> {
-  // Correct way to handle params in Next.js 14
-  const id = context.params.id;
+  const { id } = await context.params;
 
   try {
     // For admin routes, make authentication optional

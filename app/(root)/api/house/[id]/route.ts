@@ -121,10 +121,10 @@ async function uploadMultipleImages(
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const id = params.id;
+    const { id } = await params;
 
     await connectToDatabase();
     const house = await House.findById(id);
@@ -148,10 +148,10 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const id = params.id;
+    const { id } = await params;
 
     await connectToDatabase();
     const existingHouse = await House.findById(id);
@@ -357,11 +357,10 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    // Correct way to handle params in Next.js 14
-    const id = params.id;
+    const { id } = await params;
 
     await connectToDatabase();
 
@@ -446,11 +445,10 @@ export async function DELETE(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    // Correct way to handle params in Next.js 14
-    const id = params.id;
+    const { id } = await params;
 
     const { status } = await req.json();
 

@@ -18,9 +18,10 @@ interface ApiResponse {
 // GET handler - fetch a specific advertisement
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse>> {
   try {
+    const { id } = await params;
     const session = await auth();
     const userId = session.userId;
 
@@ -33,7 +34,7 @@ export async function GET(
 
     await connectToDatabase();
 
-    const advertisement = await Advertisement.findById(params.id);
+    const advertisement = await Advertisement.findById(id);
 
     if (!advertisement) {
       return NextResponse.json(
@@ -78,9 +79,10 @@ export async function GET(
 // PUT handler - update an advertisement
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse>> {
   try {
+    const { id } = await params;
     const session = await auth();
     const userId = session.userId;
 
@@ -95,7 +97,7 @@ export async function PUT(
 
     await connectToDatabase();
 
-    const advertisement = await Advertisement.findById(params.id);
+    const advertisement = await Advertisement.findById(id);
 
     if (!advertisement) {
       return NextResponse.json(
@@ -128,9 +130,10 @@ export async function PUT(
 // DELETE handler - delete an advertisement
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse>> {
   try {
+    const { id } = await params;
     const session = await auth();
     const userId = session.userId;
 
@@ -143,7 +146,7 @@ export async function DELETE(
 
     await connectToDatabase();
 
-    const advertisement = await Advertisement.findById(params.id);
+    const advertisement = await Advertisement.findById(id);
 
     if (!advertisement) {
       return NextResponse.json(
