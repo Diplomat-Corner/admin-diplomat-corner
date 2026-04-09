@@ -3,6 +3,11 @@
  * `globalThis.localStorage` object whose `getItem` is not a function.
  * Clerk (and other libs) call `localStorage.getItem` during SSR and crash.
  *
+ * If Node prints: `--localstorage-file was provided without a valid path`,
+ * use `pnpm run build` (uses `scripts/run-without-broken-localstorage-flag.mjs`)
+ * which sets a valid temp file for Node 25+ workers. Or fix `NODE_OPTIONS` /
+ * your shell so `--localstorage-file` has a real path.
+ *
  * This installs an in-memory Storage implementation only when running
  * without a real browser `window` and when the existing API is broken.
  */

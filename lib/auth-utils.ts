@@ -14,7 +14,7 @@ const adminStatusCache = new Map<string, AdminCacheEntry>();
 const ADMIN_CACHE_TTL = 30 * 60 * 1000;
 
 /**
- * WARNING: This function should NOT be used in middleware!
+ * WARNING: Do not use this in `proxy.ts` / the request edge layer (DB + latency).
  * Check if a user has admin role
  * @param clerkId The Clerk user ID to check
  * @param forceRefresh Force a refresh of the cached status

@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "node ./scripts/run-without-broken-localstorage-flag.mjs build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "update:browserslist": "npx --yes update-browserslist-db@latest"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.0.11",
@@ -47,6 +48,7 @@
     "zod": "^3.24.3"
   },
   "devDependencies": {
+    "caniuse-lite": "^1.0.30001787",
     "@eslint/eslintrc": "^3",
     "@types/node": "^20",
     "@types/react": "^19",
