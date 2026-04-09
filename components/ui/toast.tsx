@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { X } from "lucide-react";
 
 type ToastType = "success" | "error" | "info";
@@ -49,8 +58,6 @@ export function Toast({ message, type, onClose }: ToastProps) {
 }
 
 // Toast context and provider
-import { createContext, useContext, ReactNode } from "react";
-
 interface ToastContextType {
   showToast: (message: string, type: ToastType) => void;
 }
@@ -58,21 +65,24 @@ interface ToastContextType {
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<Array<{ id: number; message: string; type: ToastType }>>([]);
-  const [nextId, setNextId] = useState(1);
+  const [toasts, setToasts] = useState<
+    Array<{ id: number; message: string; type: ToastType }>
+  >([]);
+  const nextIdRef = useRef(1);
 
-  const showToast = (message: string, type: ToastType) => {
-    const id = nextId;
-    setNextId(id + 1);
+  const showToast = useCallback((message: string, type: ToastType) => {
+    const id = nextIdRef.current++;
     setToasts((prev) => [...prev, { id, message, type }]);
-  };
+  }, []);
 
-  const removeToast = (id: number) => {
+  const removeToast = useCallback((id: number) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  };
+  }, []);
+
+  const contextValue = useMemo(() => ({ showToast }), [showToast]);
 
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       <div className="fixed bottom-0 right-0 z-50 m-4 flex flex-col gap-2">
         {toasts.map((toast) => (

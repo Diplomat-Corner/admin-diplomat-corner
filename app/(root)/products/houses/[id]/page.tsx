@@ -71,30 +71,35 @@ export default function HouseDetailsPage() {
         if (!response.ok) {
           throw new Error("Failed to fetch house details");
         }
-        const data = await response.json();
-        setHouse(data);
+        const raw = await response.json();
+        // GET /api/house/[id] returns { success: true, ...houseFields }
+        if (!raw.success || !raw._id) {
+          throw new Error(raw.error || "Invalid house response");
+        }
+        const { success: _s, ...housePayload } = raw;
+        setHouse(housePayload as House);
 
         // Fetch payment details if paymentId exists
-        if (data.paymentId) {
+        if (housePayload.paymentId) {
           // Check if house was created by admin (paymentId starts with "admin-created")
-          if (data.paymentId.startsWith("admin-created")) {
+          if (housePayload.paymentId.startsWith("admin-created")) {
             // Set a special payment object for admin-created houses
             setPayment({
               _id: "admin-payment",
-              paymentId: data.paymentId,
+              paymentId: housePayload.paymentId,
               servicePrice: 0,
               receiptUrl: "",
-              uploadedAt: data.createdAt || new Date().toISOString(),
-              productId: data._id,
+              uploadedAt: housePayload.createdAt || new Date().toISOString(),
+              productId: housePayload._id,
               productType: "house",
               userId: "admin",
-              createdAt: data.createdAt,
-              updatedAt: data.updatedAt,
+              createdAt: housePayload.createdAt,
+              updatedAt: housePayload.updatedAt,
             });
           } else {
             try {
               const paymentResponse = await fetch(
-                `/api/payment/${data.paymentId}`
+                `/api/payment/${housePayload.paymentId}`
               );
               if (paymentResponse.ok) {
                 const paymentData = await paymentResponse.json();
@@ -107,15 +112,16 @@ export default function HouseDetailsPage() {
                 // Set a placeholder payment for failed payment fetches
                 setPayment({
                   _id: "unknown",
-                  paymentId: data.paymentId,
+                  paymentId: housePayload.paymentId,
                   servicePrice: 0,
                   receiptUrl: "",
-                  uploadedAt: data.createdAt || new Date().toISOString(),
-                  productId: data._id,
+                  uploadedAt:
+                    housePayload.createdAt || new Date().toISOString(),
+                  productId: housePayload._id,
                   productType: "house",
                   userId: "unknown",
-                  createdAt: data.createdAt,
-                  updatedAt: data.updatedAt,
+                  createdAt: housePayload.createdAt,
+                  updatedAt: housePayload.updatedAt,
                 });
               }
             } catch (error) {
@@ -123,15 +129,16 @@ export default function HouseDetailsPage() {
               // Set a placeholder payment for failed payment fetches
               setPayment({
                 _id: "error",
-                paymentId: data.paymentId,
+                paymentId: housePayload.paymentId,
                 servicePrice: 0,
                 receiptUrl: "",
-                uploadedAt: data.createdAt || new Date().toISOString(),
-                productId: data._id,
+                uploadedAt:
+                  housePayload.createdAt || new Date().toISOString(),
+                productId: housePayload._id,
                 productType: "house",
                 userId: "error",
-                createdAt: data.createdAt,
-                updatedAt: data.updatedAt,
+                createdAt: housePayload.createdAt,
+                updatedAt: housePayload.updatedAt,
               });
             }
           }
@@ -142,12 +149,12 @@ export default function HouseDetailsPage() {
             paymentId: "admin-created",
             servicePrice: 0,
             receiptUrl: "",
-            uploadedAt: data.createdAt || new Date().toISOString(),
-            productId: data._id,
+            uploadedAt: housePayload.createdAt || new Date().toISOString(),
+            productId: housePayload._id,
             productType: "house",
             userId: "admin",
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt,
+            createdAt: housePayload.createdAt,
+            updatedAt: housePayload.updatedAt,
           });
         }
       } catch (error) {
@@ -182,8 +189,11 @@ export default function HouseDetailsPage() {
       // Refresh house details
       const updatedResponse = await fetch(`/api/house/${params.id}`);
       if (updatedResponse.ok) {
-        const data = await updatedResponse.json();
-        setHouse(data);
+        const updated = await updatedResponse.json();
+        if (updated.success && updated._id) {
+          const { success: _s, ...housePayload } = updated;
+          setHouse(housePayload as House);
+        }
       }
     } catch (error) {
       console.error("Error updating house status:", error);

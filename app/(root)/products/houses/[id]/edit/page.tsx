@@ -49,8 +49,13 @@ export default function EditHousePage() {
         if (!response.ok) {
           throw new Error("Failed to fetch house");
         }
-        const data = await response.json();
-        setHouse(data);
+        const raw = await response.json();
+        // GET /api/house/[id] returns { success: true, ...houseFields }
+        if (!raw.success || !raw._id) {
+          throw new Error(raw.error || "Invalid house response");
+        }
+        const { success: _ok, ...housePayload } = raw;
+        setHouse(housePayload as House);
       } catch (error) {
         console.error("Error fetching house:", error);
         showToast("Failed to load house", "error");
