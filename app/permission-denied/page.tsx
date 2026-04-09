@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import PermissionDeniedScreen from "@/components/error/permission-denied";
+import { clearAdminStatusCache } from "@/lib/hooks/use-admin-check";
 import { useUser } from "@clerk/nextjs";
 import LoadingComponent from "@/components/ui/loading-component";
 
@@ -53,7 +54,8 @@ export default function PermissionDeniedPage() {
           if (data.isAdmin) {
             console.log("[PermissionDenied] User is now admin, redirecting...");
             isRedirectingRef.current = true;
-            window.location.href = "/";
+            clearAdminStatusCache();
+            window.location.replace("/");
             return true;
           }
         }

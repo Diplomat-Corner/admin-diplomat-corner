@@ -26,6 +26,16 @@ const CACHE_KEY = "diplomat_admin_status";
 // Increase TTL to 30 minutes to reduce API calls
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes (was 2 minutes)
 
+/** Clears cached admin status so the next check hits the API. Call before redirecting from /permission-denied when the API says the user is admin — otherwise stale `isAdmin: false` in sessionStorage causes a redirect loop with `(root)` AdminProtected. */
+export function clearAdminStatusCache(): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(CACHE_KEY);
+  } catch (e) {
+    console.error("Error clearing admin status cache:", e);
+  }
+}
+
 // Try to get cached admin status from sessionStorage
 const getCachedStatus = (): AdminStatusCache | null => {
   if (typeof window === "undefined") return null;
