@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@clerk/backend':
-        specifier: ^3.2.7
-        version: 3.2.7(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@clerk/nextjs':
         specifier: ^7.0.11
         version: 7.0.11(next@16.2.2(@babel/core@7.29.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -4476,7 +4473,6 @@ snapshots:
 
   admin-diplomat-corner@file:(@babel/core@7.29.0)(@types/react-dom@19.1.2(@types/react@19.1.2))(@types/react@19.1.2):
     dependencies:
-      '@clerk/backend': 3.2.7(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@clerk/nextjs': 7.0.11(next@16.2.2(@babel/core@7.29.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@hookform/resolvers': 5.0.1(react-hook-form@7.56.1(react@19.1.0))
       '@radix-ui/react-alert-dialog': 1.1.11(@types/react-dom@19.1.2(@types/react@19.1.2))(@types/react@19.1.2)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
