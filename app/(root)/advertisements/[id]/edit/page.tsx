@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdvertisementForm } from "@/components/advertisements/advertisement-form";
-import { IAdvertisement } from "@/lib/models/advertisement.model";
+import type { IAdvertisement } from "@/lib/models/advertisement.types";
 
 export default function EditAdvertisementPage() {
   const params = useParams();
@@ -21,11 +21,14 @@ export default function EditAdvertisementPage() {
       try {
         const response = await fetch(`/api/advertisements/${params.id}`);
         const data = await response.json();
+        const ad = data?.advertisement ?? (data?._id ? data : null);
 
-        if (data.success && data.advertisement) {
-          setAdvertisement(data.advertisement);
+        if (response.ok && ad) {
+          setAdvertisement(ad);
         } else {
-          console.error("Failed to fetch advertisement:", data.error);
+          const message =
+            typeof data?.error === "string" ? data.error : `HTTP ${response.status}`;
+          console.error("Failed to fetch advertisement:", message);
         }
       } catch (error) {
         console.error("Error fetching advertisement:", error);
@@ -67,15 +70,26 @@ export default function EditAdvertisementPage() {
   }
 
   return (
-    <div className="main-content space-y-4 p-4 md:p-8">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+    <div className="main-content space-y-6 p-4 md:p-8">
+      <header className="mx-auto flex w-full max-w-4xl items-start gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          type="button"
+          className="shrink-0 pt-1"
+          onClick={() => router.back()}
+        >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight text-diplomat-green">
-          Edit Advertisement
-        </h1>
-      </div>
+        <div className="min-w-0 space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight text-diplomat-green">
+            Edit advertisement
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Use the same steps to change copy, visuals, link, and schedule.
+          </p>
+        </div>
+      </header>
 
       <AdvertisementForm
         initialData={advertisement}

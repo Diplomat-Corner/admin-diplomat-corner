@@ -36,6 +36,74 @@ interface AdvertisementAnalyticsProps {
   title?: string;
 }
 
+function parseEventTimestamp(raw: unknown): string {
+  if (raw == null) return "";
+  if (typeof raw === "string") {
+    const t = new Date(raw);
+    return Number.isNaN(t.getTime()) ? "" : t.toISOString().slice(0, 10);
+  }
+  if (raw instanceof Date) {
+    return Number.isNaN(raw.getTime()) ? "" : raw.toISOString().slice(0, 10);
+  }
+  return "";
+}
+
+/** Client-side series when API returns legacy `views` / `clicks` without nested `analytics`. */
+function buildOverTimeFromEvents(raw: unknown): AnalyticsDataPoint[] {
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+  const byDate = new Map<string, TrackingItem[]>();
+  for (const e of raw) {
+    if (!e || typeof e !== "object") continue;
+    const ev = e as Record<string, unknown>;
+    const date = parseEventTimestamp(ev.timestamp);
+    if (!date) continue;
+    const item: TrackingItem = {
+      userId: String(ev.userId ?? ""),
+      timestamp:
+        typeof ev.timestamp === "string"
+          ? ev.timestamp
+          : String(ev.timestamp ?? ""),
+      device: typeof ev.device === "string" ? ev.device : undefined,
+      ipAddress: typeof ev.ipAddress === "string" ? ev.ipAddress : undefined,
+    };
+    if (!byDate.has(date)) byDate.set(date, []);
+    byDate.get(date)!.push(item);
+  }
+  return Array.from(byDate.entries())
+    .map(([date, items]) => ({ date, count: items.length, items }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function normalizeAnalytics(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: any
+): {
+  viewCount: number;
+  clickCount: number;
+  viewsOverTime: AnalyticsDataPoint[];
+  clicksOverTime: AnalyticsDataPoint[];
+} {
+  const a = data?.analytics;
+  if (a && typeof a === "object" && a !== null && !Array.isArray(a)) {
+    return {
+      viewCount: Number(a.viewCount ?? 0),
+      clickCount: Number(a.clickCount ?? 0),
+      viewsOverTime: Array.isArray(a.viewsOverTime) ? a.viewsOverTime : [],
+      clicksOverTime: Array.isArray(a.clicksOverTime) ? a.clicksOverTime : [],
+    };
+  }
+  const viewsOT = buildOverTimeFromEvents(data?.views);
+  const clicksOT = buildOverTimeFromEvents(data?.clicks);
+  const vSum = viewsOT.reduce((s, p) => s + p.count, 0);
+  const cSum = clicksOT.reduce((s, p) => s + p.count, 0);
+  return {
+    viewCount: Number(data?.viewCount ?? 0) || vSum,
+    clickCount: Number(data?.clickCount ?? 0) || cSum,
+    viewsOverTime: viewsOT,
+    clicksOverTime: clicksOT,
+  };
+}
+
 export default function AdvertisementAnalytics({
   advertisementId,
   title,
@@ -60,16 +128,22 @@ export default function AdvertisementAnalytics({
         );
 
         if (!response.ok) {
-          throw new Error("Failed to fetch analytics data");
+          const errBody = await response.json().catch(() => ({}));
+          throw new Error(
+            typeof errBody.error === "string"
+              ? errBody.error
+              : `Failed to fetch analytics (HTTP ${response.status})`
+          );
         }
 
         const data = await response.json();
-
-        if (data.success && data.analytics) {
-          setAnalyticsData(data.analytics);
-        } else {
-          throw new Error(data.error || "No analytics data available");
+        if (data.success === false) {
+          throw new Error(
+            typeof data.error === "string" ? data.error : "Analytics request failed"
+          );
         }
+        setAnalyticsData(normalizeAnalytics(data));
+        setError(null);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to load analytics"
@@ -119,22 +193,16 @@ export default function AdvertisementAnalytics({
     );
   }
 
-  if (!analyticsData) {
-    return (
-      <Card className="col-span-full">
-        <CardHeader>
-          <CardTitle>Advertisement Analytics</CardTitle>
-          <CardDescription>No analytics data available</CardDescription>
-        </CardHeader>
-        <CardContent className="h-80 flex items-center justify-center">
-          No data available for this advertisement
-        </CardContent>
-      </Card>
-    );
-  }
+  const dataToRender =
+    analyticsData ?? {
+      viewCount: 0,
+      clickCount: 0,
+      viewsOverTime: [] as AnalyticsDataPoint[],
+      clicksOverTime: [] as AnalyticsDataPoint[],
+    };
 
-  const clickChartData = prepareChartData(analyticsData.clicksOverTime);
-  const viewChartData = prepareChartData(analyticsData.viewsOverTime);
+  const clickChartData = prepareChartData(dataToRender.clicksOverTime);
+  const viewChartData = prepareChartData(dataToRender.viewsOverTime);
 
   return (
     <Card className="col-span-full">
@@ -152,7 +220,7 @@ export default function AdvertisementAnalytics({
           <Card>
             <CardHeader className="p-4">
               <CardTitle className="text-2xl font-bold">
-                {analyticsData.viewCount}
+                {dataToRender.viewCount}
               </CardTitle>
               <CardDescription>Total Views</CardDescription>
             </CardHeader>
@@ -160,7 +228,7 @@ export default function AdvertisementAnalytics({
           <Card>
             <CardHeader className="p-4">
               <CardTitle className="text-2xl font-bold">
-                {analyticsData.clickCount}
+                {dataToRender.clickCount}
               </CardTitle>
               <CardDescription>Total Clicks</CardDescription>
             </CardHeader>

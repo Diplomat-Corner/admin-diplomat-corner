@@ -8,11 +8,14 @@ import { Calendar, ImageIcon, Plus, Users } from "lucide-react";
 import { AdvertisementsTable } from "@/components/admin/advertisements-table";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
+import { computeAdvertisementEffectiveStatus } from "@/lib/models/advertisement.types";
 
-// Define types for advertisement data
 interface Advertisement {
   _id: string;
   status: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  effectiveStatus?: string;
   viewCount: number;
   clickCount: number;
 }
@@ -51,12 +54,26 @@ export default function AdvertisementsPage() {
         if (data.success && data.advertisements) {
           // Calculate stats
           const advertisements: Advertisement[] = data.advertisements;
-          const active = advertisements.filter(
-            (ad) => ad.status === "Active"
-          ).length;
-          const scheduled = advertisements.filter(
-            (ad) => ad.status === "Scheduled"
-          ).length;
+          const active = advertisements.filter((ad) => {
+            const eff =
+              ad.effectiveStatus ??
+              computeAdvertisementEffectiveStatus({
+                status: ad.status,
+                startTime: ad.startTime,
+                endTime: ad.endTime,
+              });
+            return eff === "Active";
+          }).length;
+          const scheduled = advertisements.filter((ad) => {
+            const eff =
+              ad.effectiveStatus ??
+              computeAdvertisementEffectiveStatus({
+                status: ad.status,
+                startTime: ad.startTime,
+                endTime: ad.endTime,
+              });
+            return eff === "Scheduled";
+          }).length;
           const totalViews = advertisements.reduce(
             (sum: number, ad: Advertisement) => sum + (ad.viewCount || 0),
             0
@@ -166,13 +183,13 @@ export default function AdvertisementsPage() {
           <AdvertisementsTable />
         </TabsContent>
         <TabsContent value="Active" className="space-y-4">
-          <AdvertisementsTable status="Active" />
+          <AdvertisementsTable effectiveStatus="Active" />
         </TabsContent>
         <TabsContent value="Scheduled" className="space-y-4">
-          <AdvertisementsTable status="Scheduled" />
+          <AdvertisementsTable effectiveStatus="Scheduled" />
         </TabsContent>
         <TabsContent value="Draft" className="space-y-4">
-          <AdvertisementsTable status="Draft" />
+          <AdvertisementsTable publicationStatus="Draft" />
         </TabsContent>
       </Tabs>
     </div>

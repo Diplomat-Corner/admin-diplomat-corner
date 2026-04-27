@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useUser } from "@clerk/nextjs";
 import {
   trackClick,
   useAdvertisementView,
 } from "@/lib/utils/advertisement-tracker";
+import { computeAdvertisementEffectiveStatus } from "@/lib/models/advertisement.types";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,10 +17,13 @@ interface AdvertisementCardProps {
     title: string;
     description: string;
     link: string;
-    status: "Active" | "Inactive" | "Scheduled" | "Expired" | "Draft";
+    status: string;
+    startTime?: string | null;
+    endTime?: string | null;
     priority: "High" | "Medium" | "Low";
     advertisementType: string;
     imageUrl?: string;
+    imageUrls?: string[];
     clickCount: number;
     viewCount: number;
     hashtags?: string[];
@@ -34,7 +37,13 @@ export default function AdvertisementCard({
   showAnalytics = false,
   isAdmin = false,
 }: AdvertisementCardProps) {
-  const { user } = useUser();
+  const displayStatus = computeAdvertisementEffectiveStatus({
+    status: advertisement.status,
+    startTime: advertisement.startTime,
+    endTime: advertisement.endTime,
+  });
+  const cover =
+    advertisement.imageUrls?.[0] ?? advertisement.imageUrl;
   const [clickCount, setClickCount] = useState(advertisement.clickCount);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -63,10 +72,10 @@ export default function AdvertisementCard({
 
   return (
     <Card className="overflow-hidden transition-all hover:shadow-md">
-      {advertisement.imageUrl && (
+      {cover && (
         <div className="relative aspect-video w-full">
           <Image
-            src={advertisement.imageUrl}
+            src={cover}
             alt={advertisement.title}
             fill
             className="object-cover"
@@ -75,10 +84,10 @@ export default function AdvertisementCard({
           <div className="absolute top-2 right-2 flex gap-2">
             <Badge
               variant={
-                advertisement.status === "Active" ? "default" : "secondary"
+                displayStatus === "Active" ? "default" : "secondary"
               }
             >
-              {advertisement.status}
+              {displayStatus}
             </Badge>
             <Badge variant="outline">{advertisement.priority}</Badge>
           </div>

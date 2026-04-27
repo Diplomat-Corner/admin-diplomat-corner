@@ -42,7 +42,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
-import { IAdvertisement } from "@/lib/models/advertisement.model";
+import type {
+  AdvertisementEffectiveStatus,
+  AdvertisementPublicationStatus,
+} from "@/lib/models/advertisement.types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,7 +60,8 @@ import {
 export type Advertisement = {
   _id: string;
   title: string;
-  status: "Active" | "Inactive" | "Scheduled" | "Expired" | "Draft";
+  status: AdvertisementPublicationStatus;
+  effectiveStatus: AdvertisementEffectiveStatus;
   priority: "High" | "Medium" | "Low";
   viewCount: number;
   clickCount: number;
@@ -66,6 +70,7 @@ export type Advertisement = {
   link: string;
   description: string;
   imageUrl?: string;
+  imageUrls?: string[];
   hashtags?: string[];
   advertisementType: string;
   timestamp: string;
@@ -151,31 +156,37 @@ export const columns: ColumnDef<Advertisement>[] = [
     cell: ({ row }) => <div>{row.getValue("advertisementType")}</div>,
   },
   {
-    accessorKey: "status",
-    header: "Status",
+    accessorKey: "effectiveStatus",
+    header: "Live status",
     cell: ({ row }) => {
-      const status = row.getValue("status") as
-        | "Active"
-        | "Inactive"
-        | "Scheduled"
-        | "Expired"
-        | "Draft";
+      const effective = row.getValue("effectiveStatus") as
+        | AdvertisementEffectiveStatus
+        | undefined;
+      const publication = row.original.status;
+      const label = effective ?? publication;
       return (
-        <Badge
-          className={
-            status === "Active"
-              ? "bg-green-500"
-              : status === "Scheduled"
-              ? "bg-blue-500"
-              : status === "Inactive"
-              ? "bg-yellow-500"
-              : status === "Expired"
-              ? "bg-red-500"
-              : "bg-gray-500"
-          }
-        >
-          {status}
-        </Badge>
+        <div className="flex flex-col gap-0.5">
+          <Badge
+            className={
+              label === "Active"
+                ? "bg-green-500"
+                : label === "Scheduled"
+                  ? "bg-blue-500"
+                  : label === "Inactive"
+                    ? "bg-yellow-500"
+                    : label === "Expired"
+                      ? "bg-red-500"
+                      : "bg-gray-500"
+            }
+          >
+            {label}
+          </Badge>
+          {publication !== label && (
+            <span className="text-xs text-muted-foreground">
+              Publication: {publication}
+            </span>
+          )}
+        </div>
       );
     },
   },
@@ -283,7 +294,10 @@ export const columns: ColumnDef<Advertisement>[] = [
 ];
 
 interface AdvertisementsTableProps {
-  status?: "Active" | "Inactive" | "Scheduled" | "Expired" | "Draft";
+  /** Filter by computed live state (Active, Scheduled, Expired, …). */
+  effectiveStatus?: AdvertisementEffectiveStatus;
+  /** Filter by stored publication setting (Draft, Inactive, or all Active records). */
+  publicationStatus?: AdvertisementPublicationStatus;
 }
 
 function TableSkeleton() {
@@ -321,7 +335,10 @@ function TableSkeleton() {
   );
 }
 
-export function AdvertisementsTable({ status }: AdvertisementsTableProps) {
+export function AdvertisementsTable({
+  effectiveStatus,
+  publicationStatus,
+}: AdvertisementsTableProps) {
   const router = useRouter();
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -339,10 +356,15 @@ export function AdvertisementsTable({ status }: AdvertisementsTableProps) {
     const fetchAds = async () => {
       setLoading(true);
       try {
-        let url = "/api/advertisements";
-        if (status) {
-          url += `?status=${status}`;
+        const params = new URLSearchParams();
+        if (effectiveStatus) {
+          params.set("effectiveStatus", effectiveStatus);
         }
+        if (publicationStatus) {
+          params.set("publicationStatus", publicationStatus);
+        }
+        const qs = params.toString();
+        const url = qs ? `/api/advertisements?${qs}` : "/api/advertisements";
 
         const response = await fetch(url);
         const data = await response.json();
@@ -360,7 +382,7 @@ export function AdvertisementsTable({ status }: AdvertisementsTableProps) {
     };
 
     fetchAds();
-  }, [status]);
+  }, [effectiveStatus, publicationStatus]);
 
   const table = useReactTable({
     data: advertisements,

@@ -29,7 +29,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { IAdvertisement } from "@/lib/models/advertisement.model";
+import {
+  IAdvertisement,
+  normalizeImageUrls,
+  computeAdvertisementEffectiveStatus,
+  normalizePublicationStatus,
+} from "@/lib/models/advertisement.types";
 
 export default function AdvertisementDetailPage() {
   const params = useParams();
@@ -48,14 +53,20 @@ export default function AdvertisementDetailPage() {
       try {
         const response = await fetch(`/api/advertisements/${params.id}`);
         const data = await response.json();
+        const ad = data?.advertisement ?? (data?._id ? data : null);
 
-        if (data.success && data.advertisement) {
-          setAdvertisement(data.advertisement);
+        if (response.ok && ad) {
+          setAdvertisement(ad);
+          setError(null);
         } else {
-          console.error("Failed to fetch advertisement:", data.error);
+          const message =
+            typeof data?.error === "string" ? data.error : `HTTP ${response.status}`;
+          setError(message);
+          console.error("Failed to fetch advertisement:", message);
         }
       } catch (error) {
         console.error("Error fetching advertisement:", error);
+        setError("Network error");
       } finally {
         setLoading(false);
       }
@@ -70,8 +81,8 @@ export default function AdvertisementDetailPage() {
     try {
       setStatusUpdateLoading(true);
 
-      const newStatus =
-        advertisement.status === "Active" ? "Inactive" : "Active";
+      const pub = normalizePublicationStatus(advertisement.status);
+      const newStatus = pub === "Active" ? "Inactive" : "Active";
 
       const response = await fetch(`/api/advertisements/${advertisement._id}`, {
         method: "PUT",
@@ -192,6 +203,15 @@ export default function AdvertisementDetailPage() {
     });
   };
 
+  const publication = normalizePublicationStatus(advertisement.status);
+  const effective =
+    advertisement.effectiveStatus ??
+    computeAdvertisementEffectiveStatus({
+      status: advertisement.status,
+      startTime: advertisement.startTime,
+      endTime: advertisement.endTime,
+    });
+
   return (
     <div className="main-content space-y-4 p-4 md:p-8">
       <div className="flex items-center justify-between">
@@ -204,22 +224,42 @@ export default function AdvertisementDetailPage() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <Badge
-            className={
-              advertisement.status === "Active" ? "bg-green-500" : "bg-gray-500"
-            }
-          >
-            {advertisement.status}
-          </Badge>
+          <div className="flex flex-col items-end gap-0.5">
+            <Badge
+              className={
+                effective === "Active"
+                  ? "bg-green-500"
+                  : effective === "Scheduled"
+                    ? "bg-blue-500"
+                    : effective === "Inactive"
+                      ? "bg-yellow-500"
+                      : effective === "Expired"
+                        ? "bg-red-500"
+                        : "bg-gray-500"
+              }
+            >
+              {effective}
+            </Badge>
+            {publication !== effective && (
+              <span className="text-xs text-muted-foreground">
+                Publication: {publication}
+              </span>
+            )}
+          </div>
           <Button
             variant="outline"
             size="icon"
             onClick={handleStatusToggle}
             disabled={statusUpdateLoading}
+            title={
+              publication === "Active"
+                ? "Deactivate (Inactive)"
+                : "Activate (Active)"
+            }
           >
             {statusUpdateLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
-            ) : advertisement.status === "Active" ? (
+            ) : publication === "Active" ? (
               <EyeOff className="h-4 w-4" />
             ) : (
               <Eye className="h-4 w-4" />
@@ -235,22 +275,26 @@ export default function AdvertisementDetailPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Status</h3>
+              <h3 className="text-sm font-medium text-gray-500">Live status</h3>
               <Badge
                 className={
-                  advertisement.status === "Active"
+                  effective === "Active"
                     ? "bg-green-500"
-                    : advertisement.status === "Scheduled"
-                    ? "bg-blue-500"
-                    : advertisement.status === "Inactive"
-                    ? "bg-yellow-500"
-                    : advertisement.status === "Expired"
-                    ? "bg-red-500"
-                    : "bg-gray-500"
+                    : effective === "Scheduled"
+                      ? "bg-blue-500"
+                      : effective === "Inactive"
+                        ? "bg-yellow-500"
+                        : effective === "Expired"
+                          ? "bg-red-500"
+                          : "bg-gray-500"
                 }
               >
-                {advertisement.status}
+                {effective}
               </Badge>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Publication setting: {publication} (Draft / Active / Inactive).
+                Scheduled and Expired are computed from dates when Active.
+              </p>
             </div>
             <div>
               <h3 className="text-sm font-medium text-gray-500">Priority</h3>
@@ -331,26 +375,35 @@ export default function AdvertisementDetailPage() {
         </Card>
       </div>
 
-      {/* Preview Section - Show only if image exists and is a valid URL */}
-      {advertisement.imageUrl && isValidUrl(advertisement.imageUrl) && (
+      {normalizeImageUrls({
+        imageUrls: advertisement.imageUrls,
+        imageUrl: advertisement.imageUrl,
+      }).some((u) => isValidUrl(u)) && (
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle>Preview</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="relative aspect-[16/9] sm:aspect-[3/1] rounded-lg overflow-hidden bg-gray-100">
-              <Image
-                src={advertisement.imageUrl}
-                alt={`Preview of ${advertisement.title}`}
-                fill
-                className="object-contain"
-                onError={(e) => {
-                  // Handle image load errors
-                  const target = e.target as HTMLImageElement;
-                  target.src = "/placeholder-image.jpg"; // You can add a placeholder image
-                  target.onerror = null; // Prevent infinite error loop
-                }}
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {normalizeImageUrls({
+                imageUrls: advertisement.imageUrls,
+                imageUrl: advertisement.imageUrl,
+              })
+                .filter((u) => isValidUrl(u))
+                .map((url) => (
+                  <div
+                    key={url}
+                    className="relative aspect-[16/9] rounded-lg overflow-hidden bg-gray-100"
+                  >
+                    <Image
+                      src={url}
+                      alt={`Preview of ${advertisement.title}`}
+                      fill
+                      className="object-contain"
+                      unoptimized
+                    />
+                  </div>
+                ))}
             </div>
           </CardContent>
         </Card>
