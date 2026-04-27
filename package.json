@@ -34,7 +34,6 @@
     "date-fns": "^4.1.0",
     "framer-motion": "^12.9.2",
     "lucide-react": "^0.503.0",
-    "mongoose": "^8.14.0",
     "next": "^16.2.2",
     "react": "^19.0.0",
     "react-day-picker": "^9.6.7",
@@ -42,7 +41,6 @@
     "react-hook-form": "^7.56.1",
     "recharts": "^2.15.3",
     "sonner": "^2.0.3",
-    "svix": "^1.64.1",
     "tailwind-merge": "^3.2.0",
     "uuid": "^11.1.0",
     "zod": "^3.24.3"
@@ -53,7 +51,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@types/tailwindcss": "^3.1.0",
     "autoprefixer": "^10.4.21",
     "eslint": "^9",
     "eslint-config-next": "^16.2.2",

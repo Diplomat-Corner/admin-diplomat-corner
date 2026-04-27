@@ -1,12 +1,10 @@
 #!/usr/bin/env node
 /**
- * Next.js build spawns worker processes that inherit NODE_OPTIONS. On Node.js
- * 25+, the Web Storage API expects `--localstorage-file=<path>`. A missing or
- * invalid path (often injected by the IDE or shell) triggers:
- *   Warning: `--localstorage-file` was provided without a valid path
+ * Next.js build spawns worker processes that inherit NODE_OPTIONS.
  *
- * We strip any `--localstorage-file` usage, then set one stable path under
- * os.tmpdir() so workers inherit a valid configuration.
+ * - Node 20–24: `--localstorage-file` is NOT allowed in NODE_OPTIONS (process exits).
+ *   We only STRIP inherited `--localstorage-file` flags.
+ * - Node 25+: after stripping bad values, set a stable path under os.tmpdir() for workers.
  */
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
@@ -35,15 +33,18 @@ function stripLocalstorageFileOptions(raw) {
 
 const env = { ...process.env };
 const stripped = stripLocalstorageFileOptions(env.NODE_OPTIONS);
+const nodeMajor = Number(String(process.versions.node).split(".")[0]) || 0;
+const injectLocalstorageFile = nodeMajor >= 25;
 
-const storagePath = path.join(tmpdir(), "diplomat-corner-node-localstorage");
-writeFileSync(storagePath, "", { flag: "a" });
-const withStorage = `--localstorage-file=${storagePath}`;
-
-if (stripped) {
-  env.NODE_OPTIONS = `${stripped} ${withStorage}`;
+if (injectLocalstorageFile) {
+  const storagePath = path.join(tmpdir(), "diplomat-corner-node-localstorage");
+  writeFileSync(storagePath, "", { flag: "a" });
+  const withStorage = `--localstorage-file=${storagePath}`;
+  env.NODE_OPTIONS = stripped ? `${stripped} ${withStorage}` : withStorage;
+} else if (stripped !== undefined) {
+  env.NODE_OPTIONS = stripped;
 } else {
-  env.NODE_OPTIONS = withStorage;
+  delete env.NODE_OPTIONS;
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));

@@ -293,8 +293,9 @@ export default function CarDetailPage() {
 
       if (contentType && contentType.includes("application/json")) {
         const data = await updatedResponse.json();
-        if (data.success && data.car) {
-          setCar(data.car);
+        const carPayload = data.car ?? data;
+        if (data.success && carPayload?._id) {
+          setCar(carPayload);
           showToast(`Car status updated successfully`, "success");
         } else {
           throw new Error("Invalid car data format in response");

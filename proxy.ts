@@ -5,7 +5,6 @@ import { NextResponse } from "next/server";
 const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
-  "/api/webhook(.*)",
   "/permission-denied(.*)",
 ]);
 
@@ -22,6 +21,12 @@ const isAdminRoute = createRouteMatcher([
 
 // Next.js 16+: `proxy.ts` replaces `middleware.ts` (same Clerk default export pattern).
 export default clerkMiddleware(async (auth, req) => {
+  // Do not run Clerk for `/api` proxy route handlers. Combining Clerk middleware
+  // (rewrites) with the App Router BFF that `fetch`es `DIPLOMAT_API` can error or loop
+  // (e.g. "NextResponse.rewrite() was used in a app route handler") on long requests.
+  if (req.nextUrl.pathname.startsWith("/api")) {
+    return NextResponse.next();
+  }
   try {
     const { userId } = await auth();
     const pathname = req.nextUrl.pathname;

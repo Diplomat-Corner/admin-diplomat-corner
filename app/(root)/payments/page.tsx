@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign } from "lucide-react";
+import { PaymentInfoEditButton } from "@/components/admin/payment-info-edit-dialog";
 import {
   PaymentsTable,
   type Payment as TablePayment,
@@ -127,9 +127,14 @@ export default function PaymentsPage() {
 
   return (
     <div className="main-content space-y-8 p-4 md:p-8">
-      <h1 className="text-3xl font-bold tracking-tight text-diplomat-green mb-4">
-        Payments Analytics
-      </h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 mb-4">
+        <h1 className="text-3xl font-bold tracking-tight text-diplomat-green">
+          Payments Analytics
+        </h1>
+        <div className="shrink-0 self-end sm:self-start">
+          <PaymentInfoEditButton />
+        </div>
+      </div>
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
