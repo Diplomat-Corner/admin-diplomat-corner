@@ -121,27 +121,33 @@ export function HousesTable({
   const fetchHouses = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/house");
+      const response = await fetch(
+        "/api/house?page=1&limit=5000&includePending=1"
+      );
       if (!response.ok) {
         throw new Error("Failed to fetch houses");
       }
       const data = await response.json();
+      const list: House[] = Array.isArray(data.houses)
+        ? data.houses
+        : Array.isArray(data)
+          ? data
+          : [];
 
-      // Filter houses based on props
-      let filteredHouses = data;
+      // Filter client-side based on props (chain so pending + sale/rent both apply)
+      let filteredHouses = list;
       if (pending) {
-        filteredHouses = data.filter(
-          (house: House) => house.status === "Pending"
+        filteredHouses = filteredHouses.filter(
+          (house) => house.status === "Pending"
         );
       }
       if (listingType === "sale") {
-        filteredHouses = data.filter(
-          (house: House) => house.advertisementType === "Sale"
+        filteredHouses = filteredHouses.filter(
+          (house) => house.advertisementType === "Sale"
         );
-      }
-      if (listingType === "rent") {
-        filteredHouses = data.filter(
-          (house: House) => house.advertisementType === "Rent"
+      } else if (listingType === "rent") {
+        filteredHouses = filteredHouses.filter(
+          (house) => house.advertisementType === "Rent"
         );
       }
 

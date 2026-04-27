@@ -134,7 +134,7 @@ const PermissionDeniedScreen: React.FC<PermissionDeniedScreenProps> = ({
                 {user.primaryEmailAddress?.emailAddress}
               </span>
             </div>
-            <UserButton afterSignOutUrl="/sign-in" />
+            <UserButton />
           </div>
         )}
       </div>

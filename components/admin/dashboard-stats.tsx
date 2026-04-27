@@ -26,8 +26,8 @@ export function DashboardStats() {
         const housesData = await housesResponse.json();
         const carsData = await carsResponse.json();
 
-        setHouses(housesData);
-        setCars(carsData.cars || []);
+        setHouses(Array.isArray(housesData.houses) ? housesData.houses : []);
+        setCars(Array.isArray(carsData.cars) ? carsData.cars : []);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {

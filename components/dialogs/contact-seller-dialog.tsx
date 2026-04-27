@@ -1,6 +1,5 @@
 "use client";
 
-import { sendNotification } from "@/lib/actions/notification.actions";
 import React, { FormEvent, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useParams } from "next/navigation";
@@ -13,8 +12,6 @@ import {
   Loader2,
   CheckCircle,
 } from "lucide-react";
-import { EmailAddress } from "@clerk/nextjs/server";
-
 interface ContactSellerDialogProps {
   isOpen: boolean;
   onClose: () => void;

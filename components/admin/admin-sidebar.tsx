@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useSidebar } from "./sidebar-provider";
 import { cn } from "@/lib/utils";
 import {
+  Archive,
   BarChart3,
   Car,
   ChevronLeft,
@@ -20,6 +21,7 @@ import {
   MessageCircle,
   MessageSquareWarning,
   UserCircle,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserButton, useUser } from "@clerk/nextjs";
@@ -85,13 +87,27 @@ export function AdminSidebar() {
           isOpen={isOpen}
           indent
         />
-        {/* <NavItem
+        <NavItem
           href="/advertisements"
           icon={<ImageIcon className="h-5 w-5" />}
           label="Advertisements"
           isActive={pathname.startsWith("/advertisements")}
           isOpen={isOpen}
-        /> */}
+        />
+        <NavItem
+          href="/users"
+          icon={<Users className="h-5 w-5" />}
+          label="Users"
+          isActive={pathname === "/users"}
+          isOpen={isOpen}
+        />
+        <NavItem
+          href="/backup"
+          icon={<Archive className="h-5 w-5" />}
+          label="Backup"
+          isActive={pathname === "/backup"}
+          isOpen={isOpen}
+        />
         <NavItem
           href="/payments"
           icon={<CreditCard className="h-5 w-5" />}
@@ -133,7 +149,7 @@ export function AdminSidebar() {
               </span>
             </div>
           )}
-          <UserButton afterSignOutUrl="/sign-in" />
+          <UserButton />
         </div>
 
         {isOpen && (
