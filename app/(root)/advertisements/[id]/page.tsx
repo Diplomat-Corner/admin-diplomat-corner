@@ -102,8 +102,19 @@ export default function AdvertisementDetailPage() {
         throw new Error(result.error || "Failed to update status");
       }
 
-      // Update local state with new advertisement data
-      setAdvertisement(result.advertisement);
+      // API now returns the updated doc; older deployments returned only { success: true }.
+      if (
+        result.advertisement &&
+        typeof result.advertisement === "object" &&
+        result.advertisement !== null &&
+        "_id" in result.advertisement
+      ) {
+        setAdvertisement(result.advertisement as unknown as IAdvertisement);
+      } else {
+        setAdvertisement((prev) =>
+          prev ? { ...prev, status: newStatus } : prev
+        );
+      }
     } catch (err) {
       console.error("Error updating status:", err);
       // Show error message to user
