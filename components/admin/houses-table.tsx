@@ -47,6 +47,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
@@ -62,6 +69,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { getPrimaryImageUrl } from "@/lib/utils";
+
+const PAGE_SIZE_OPTIONS = [10, 50, 100];
 
 export type House = {
   _id: string;
@@ -85,11 +94,12 @@ export type House = {
   updatedAt?: string;
   paymentId: string;
   visiblity: "Private" | "Public";
-  status: "Pending" | "Active";
+  status?: string;
 };
 
 interface HousesTableProps {
   listingType?: "sale" | "rent";
+  status?: string;
   pending?: boolean;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
@@ -97,6 +107,7 @@ interface HousesTableProps {
 
 export function HousesTable({
   listingType,
+  status,
   pending = false,
   onApprove,
   onReject,
@@ -122,7 +133,7 @@ export function HousesTable({
     try {
       setLoading(true);
       const response = await fetch(
-        "/api/house?page=1&limit=5000&includePending=1"
+        "/api/house?all=1&includeAllStatuses=1"
       );
       if (!response.ok) {
         throw new Error("Failed to fetch houses");
@@ -139,6 +150,11 @@ export function HousesTable({
       if (pending) {
         filteredHouses = filteredHouses.filter(
           (house) => house.status === "Pending"
+        );
+      }
+      if (status) {
+        filteredHouses = filteredHouses.filter(
+          (house) => house.status === status
         );
       }
       if (listingType === "sale") {
@@ -158,7 +174,7 @@ export function HousesTable({
     } finally {
       setLoading(false);
     }
-  }, [listingType, pending, showToast]);
+  }, [listingType, pending, showToast, status]);
 
   useEffect(() => {
     fetchHouses();
@@ -312,13 +328,13 @@ export function HousesTable({
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => {
-        const status = row.getValue("status") as "Active" | "Pending";
+        const status = String(row.getValue("status") || "Unknown");
         return (
           <Badge
             className={
-              status === "Active"
+              status.toLowerCase() === "active"
                 ? "bg-green-500"
-                : status === "Pending"
+                : status.toLowerCase() === "pending"
                 ? "bg-yellow-500"
                 : "bg-gray-500"
             }
@@ -489,6 +505,11 @@ export function HousesTable({
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
+    },
     state: {
       sorting,
       columnFilters,
@@ -601,10 +622,28 @@ export function HousesTable({
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
+      <div className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-end">
         <div className="flex-1 text-sm text-muted-foreground">
           {table.getFilteredSelectedRowModel().rows.length} of{" "}
           {table.getFilteredRowModel().rows.length} row(s) selected.
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Rows per page</span>
+          <Select
+            value={`${table.getState().pagination.pageSize}`}
+            onValueChange={(value) => table.setPageSize(Number(value))}
+          >
+            <SelectTrigger className="h-8 w-[80px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_SIZE_OPTIONS.map((pageSize) => (
+                <SelectItem key={pageSize} value={`${pageSize}`}>
+                  {pageSize}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-x-2">
           <Button

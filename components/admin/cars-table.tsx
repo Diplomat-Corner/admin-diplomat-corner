@@ -47,6 +47,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components//ui/badge";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
@@ -63,6 +70,8 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import { getPrimaryImageUrl } from "@/lib/utils";
 
+const PAGE_SIZE_OPTIONS = [10, 50, 100];
+
 export type Car = {
   _id: string;
   name: string;
@@ -74,7 +83,7 @@ export type Car = {
   advertisementType: "Rent" | "Sale";
   price: number;
   currency: string;
-  status: "Active" | "Pending";
+  status?: string;
   createdAt?: string;
   updatedAt?: string;
   imageUrl?: string;
@@ -84,6 +93,7 @@ export type Car = {
 
 interface CarsTableProps {
   listingType?: "Sale" | "Rent";
+  status?: string;
   pending?: boolean;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
@@ -91,6 +101,7 @@ interface CarsTableProps {
 
 export function CarsTable({
   listingType,
+  status,
   pending = false,
   onApprove,
   onReject,
@@ -115,7 +126,7 @@ export function CarsTable({
   const fetchCars = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/cars");
+      const response = await fetch("/api/cars?all=1&includeAllStatuses=1");
       if (!response.ok) {
         throw new Error("Failed to fetch cars");
       }
@@ -128,10 +139,15 @@ export function CarsTable({
       // Filter cars based on props
       let filteredCars = data;
       if (pending) {
-        filteredCars = data.filter((car: Car) => car.status === "Pending");
+        filteredCars = filteredCars.filter(
+          (car: Car) => car.status === "Pending"
+        );
+      }
+      if (status) {
+        filteredCars = filteredCars.filter((car: Car) => car.status === status);
       }
       if (listingType) {
-        filteredCars = data.filter(
+        filteredCars = filteredCars.filter(
           (car: Car) => car.advertisementType === listingType
         );
       }
@@ -144,7 +160,7 @@ export function CarsTable({
     } finally {
       setLoading(false);
     }
-  }, [listingType, pending, showToast]);
+  }, [listingType, pending, showToast, status]);
 
   useEffect(() => {
     fetchCars();
@@ -298,13 +314,13 @@ export function CarsTable({
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => {
-        const status = row.getValue("status") as "Active" | "Pending";
+        const status = String(row.getValue("status") || "Unknown");
         return (
           <Badge
             className={
-              status === "Active"
+              status.toLowerCase() === "active"
                 ? "bg-green-500"
-                : status === "Pending"
+                : status.toLowerCase() === "pending"
                 ? "bg-yellow-500"
                 : "bg-gray-500"
             }
@@ -475,6 +491,11 @@ export function CarsTable({
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
+    },
     state: {
       sorting,
       columnFilters,
@@ -588,10 +609,28 @@ export function CarsTable({
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
+      <div className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-end">
         <div className="flex-1 text-sm text-muted-foreground">
           {table.getFilteredSelectedRowModel().rows.length} of{" "}
           {table.getFilteredRowModel().rows.length} row(s) selected.
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Rows per page</span>
+          <Select
+            value={`${table.getState().pagination.pageSize}`}
+            onValueChange={(value) => table.setPageSize(Number(value))}
+          >
+            <SelectTrigger className="h-8 w-[80px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_SIZE_OPTIONS.map((pageSize) => (
+                <SelectItem key={pageSize} value={`${pageSize}`}>
+                  {pageSize}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-x-2">
           <Button

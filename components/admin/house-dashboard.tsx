@@ -13,7 +13,18 @@ interface HouseStats {
   forSaleHouses: number;
   forRentHouses: number;
   pendingHouses: number;
+  statusCounts?: Record<string, number>;
 }
+
+const statusTabValue = (status: string) => `status-${status}`;
+
+const formatStatusLabel = (status: string) => {
+  if (status.toLowerCase() === "pending") {
+    return "Pending Approval";
+  }
+
+  return status.charAt(0).toUpperCase() + status.slice(1);
+};
 
 export function HouseDashboard() {
   const [stats, setStats] = useState<HouseStats>({
@@ -21,6 +32,7 @@ export function HouseDashboard() {
     forSaleHouses: 0,
     forRentHouses: 0,
     pendingHouses: 0,
+    statusCounts: {},
   });
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
@@ -130,20 +142,18 @@ export function HouseDashboard() {
       <Tabs defaultValue="all" className="space-y-4">
         <TabsList>
           <TabsTrigger value="all">All Houses</TabsTrigger>
-          <TabsTrigger value="pending">Pending Approval</TabsTrigger>
-          <TabsTrigger value="active">Active</TabsTrigger>
           <TabsTrigger value="for-sale">For Sale</TabsTrigger>
           <TabsTrigger value="for-rent">For Rent</TabsTrigger>
+          {Object.keys(stats.statusCounts ?? {})
+            .sort((a, b) => a.localeCompare(b))
+            .map((status) => (
+              <TabsTrigger key={status} value={statusTabValue(status)}>
+                {formatStatusLabel(status)}
+              </TabsTrigger>
+            ))}
         </TabsList>
         <TabsContent value="all" className="space-y-4">
           <HousesTable />
-        </TabsContent>
-        <TabsContent value="pending" className="space-y-4">
-          <HousesTable
-            pending={true}
-            onApprove={(id: string) => handleStatusChange(id, "Active")}
-            onReject={(id: string) => handleStatusChange(id, "Pending")}
-          />
         </TabsContent>
         <TabsContent value="for-sale" className="space-y-4">
           <HousesTable listingType="sale" />
@@ -151,6 +161,21 @@ export function HouseDashboard() {
         <TabsContent value="for-rent" className="space-y-4">
           <HousesTable listingType="rent" />
         </TabsContent>
+        {Object.keys(stats.statusCounts ?? {})
+          .sort((a, b) => a.localeCompare(b))
+          .map((status) => (
+            <TabsContent
+              key={status}
+              value={statusTabValue(status)}
+              className="space-y-4"
+            >
+              <HousesTable
+                status={status}
+                onApprove={(id: string) => handleStatusChange(id, "Active")}
+                onReject={(id: string) => handleStatusChange(id, "Pending")}
+              />
+            </TabsContent>
+          ))}
       </Tabs>
     </div>
   );

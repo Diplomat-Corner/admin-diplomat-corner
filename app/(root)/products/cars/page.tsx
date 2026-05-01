@@ -12,8 +12,18 @@ import { useState, useEffect } from "react";
 interface Car {
   _id: string;
   advertisementType: "Sale" | "Rent";
-  status: "Active" | "Pending";
+  status?: string;
 }
+
+const statusTabValue = (status: string) => `status-${status}`;
+
+const formatStatusLabel = (status: string) => {
+  if (status.toLowerCase() === "pending") {
+    return "Pending Approval";
+  }
+
+  return status.charAt(0).toUpperCase() + status.slice(1);
+};
 
 export default function CarsPage() {
   const [stats, setStats] = useState({
@@ -23,12 +33,13 @@ export default function CarsPage() {
     pending: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [statuses, setStatuses] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchCarStats = async () => {
       try {
         setLoading(true);
-        const response = await fetch("/api/cars");
+        const response = await fetch("/api/cars?all=1&includeAllStatuses=1");
 
         if (!response.ok) {
           throw new Error("Failed to fetch car data");
@@ -37,7 +48,7 @@ export default function CarsPage() {
         const result = await response.json();
 
         // Extract the cars array from the API response
-        const data = result.cars || [];
+        const data: Car[] = result.cars || [];
         console.log("Cars data:", data);
 
         // Calculate stats
@@ -51,6 +62,15 @@ export default function CarsPage() {
         const pending = data.filter(
           (car: Car) => car.status === "Pending"
         ).length;
+        const nextStatuses = Array.from(
+          new Set<string>(
+            data
+              .map((car) => car.status?.trim())
+              .filter((status: string | undefined): status is string =>
+                Boolean(status)
+              )
+          )
+        ).sort((a, b) => a.localeCompare(b));
 
         setStats({
           total,
@@ -58,6 +78,7 @@ export default function CarsPage() {
           forRent,
           pending,
         });
+        setStatuses(nextStatuses);
       } catch (error) {
         console.error("Error fetching car statistics:", error);
         // Set default stats on error
@@ -67,6 +88,7 @@ export default function CarsPage() {
           forRent: 0,
           pending: 0,
         });
+        setStatuses([]);
       } finally {
         setLoading(false);
       }
@@ -91,84 +113,87 @@ export default function CarsPage() {
         </div>
       </div>
       <Tabs defaultValue="all" className="space-y-4">
-        <TabsContent value="all" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Total Cars
-                </CardTitle>
-                <Car className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="flex items-center">
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    <span className="text-sm">Loading...</span>
-                  </div>
-                ) : (
-                  <div className="text-2xl font-bold">{stats.total}</div>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">For Sale</CardTitle>
-                <Car className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="flex items-center">
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    <span className="text-sm">Loading...</span>
-                  </div>
-                ) : (
-                  <div className="text-2xl font-bold">{stats.forSale}</div>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">For Rent</CardTitle>
-                <Car className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="flex items-center">
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    <span className="text-sm">Loading...</span>
-                  </div>
-                ) : (
-                  <div className="text-2xl font-bold">{stats.forRent}</div>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Pending Approval
-                </CardTitle>
-                <Car className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="flex items-center">
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    <span className="text-sm">Loading...</span>
-                  </div>
-                ) : (
-                  <div className="text-2xl font-bold">{stats.pending}</div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Cars</CardTitle>
+              <Car className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <span className="text-sm">Loading...</span>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold">{stats.total}</div>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">For Sale</CardTitle>
+              <Car className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <span className="text-sm">Loading...</span>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold">{stats.forSale}</div>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">For Rent</CardTitle>
+              <Car className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <span className="text-sm">Loading...</span>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold">{stats.forRent}</div>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Pending Approval
+              </CardTitle>
+              <Car className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <span className="text-sm">Loading...</span>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold">{stats.pending}</div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
-          <TabsList>
-            <TabsTrigger value="all">All Cars</TabsTrigger>
-            <TabsTrigger value="for-sale">For Sale</TabsTrigger>
-            <TabsTrigger value="for-rent">For Rent</TabsTrigger>
-            <TabsTrigger value="pending">Pending Approval</TabsTrigger>
-          </TabsList>
+        <TabsList>
+          <TabsTrigger value="all">All Cars</TabsTrigger>
+          <TabsTrigger value="for-sale">For Sale</TabsTrigger>
+          <TabsTrigger value="for-rent">For Rent</TabsTrigger>
+          {statuses.map((status) => (
+            <TabsTrigger key={status} value={statusTabValue(status)}>
+              {formatStatusLabel(status)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        <TabsContent value="all" className="space-y-4">
           <CarsTable />
         </TabsContent>
         <TabsContent value="for-sale" className="space-y-4">
@@ -177,9 +202,15 @@ export default function CarsPage() {
         <TabsContent value="for-rent" className="space-y-4">
           <CarsTable listingType="Rent" />
         </TabsContent>
-        <TabsContent value="pending" className="space-y-4">
-          <CarsTable pending={true} />
-        </TabsContent>
+        {statuses.map((status) => (
+          <TabsContent
+            key={status}
+            value={statusTabValue(status)}
+            className="space-y-4"
+          >
+            <CarsTable status={status} />
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   );
