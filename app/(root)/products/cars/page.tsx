@@ -5,15 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Car, Plus, Loader2 } from "lucide-react";
 import { CarsTable } from "@/components/admin/cars-table";
+import type { Car as AdminCar } from "@/components/admin/cars-table";
 import Link from "next/link";
-import { useState, useEffect } from "react";
-
-// Define the Car type
-interface Car {
-  _id: string;
-  advertisementType: "Sale" | "Rent";
-  status?: string;
-}
+import { useMemo } from "react";
+import { useAdminCarsQuery } from "@/hooks/queries/use-admin-cars";
 
 const statusTabValue = (status: string) => `status-${status}`;
 
@@ -26,76 +21,27 @@ const formatStatusLabel = (status: string) => {
 };
 
 export default function CarsPage() {
-  const [stats, setStats] = useState({
-    total: 0,
-    forSale: 0,
-    forRent: 0,
-    pending: 0,
-  });
-  const [loading, setLoading] = useState(true);
-  const [statuses, setStatuses] = useState<string[]>([]);
+  const { data: rawCars = [], isPending: loading } = useAdminCarsQuery();
 
-  useEffect(() => {
-    const fetchCarStats = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch("/api/cars?all=1&includeAllStatuses=1");
+  const { stats, statuses } = useMemo(() => {
+    const data = rawCars as AdminCar[];
+    const total = data.length;
+    const forSale = data.filter((c) => c.advertisementType === "Sale").length;
+    const forRent = data.filter((c) => c.advertisementType === "Rent").length;
+    const pending = data.filter((c) => c.status === "Pending").length;
+    const nextStatuses = Array.from(
+      new Set<string>(
+        data
+          .map((car) => car.status?.trim())
+          .filter((status): status is string => Boolean(status))
+      )
+    ).sort((a, b) => a.localeCompare(b));
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch car data");
-        }
-
-        const result = await response.json();
-
-        // Extract the cars array from the API response
-        const data: Car[] = result.cars || [];
-        console.log("Cars data:", data);
-
-        // Calculate stats
-        const total = data.length;
-        const forSale = data.filter(
-          (car: Car) => car.advertisementType === "Sale"
-        ).length;
-        const forRent = data.filter(
-          (car: Car) => car.advertisementType === "Rent"
-        ).length;
-        const pending = data.filter(
-          (car: Car) => car.status === "Pending"
-        ).length;
-        const nextStatuses = Array.from(
-          new Set<string>(
-            data
-              .map((car) => car.status?.trim())
-              .filter((status: string | undefined): status is string =>
-                Boolean(status)
-              )
-          )
-        ).sort((a, b) => a.localeCompare(b));
-
-        setStats({
-          total,
-          forSale,
-          forRent,
-          pending,
-        });
-        setStatuses(nextStatuses);
-      } catch (error) {
-        console.error("Error fetching car statistics:", error);
-        // Set default stats on error
-        setStats({
-          total: 0,
-          forSale: 0,
-          forRent: 0,
-          pending: 0,
-        });
-        setStatuses([]);
-      } finally {
-        setLoading(false);
-      }
+    return {
+      stats: { total, forSale, forRent, pending },
+      statuses: nextStatuses,
     };
-
-    fetchCarStats();
-  }, []);
+  }, [rawCars]);
 
   return (
     <div className="main-content space-y-4 p-4 md:p-8">

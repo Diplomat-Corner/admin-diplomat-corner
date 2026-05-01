@@ -67,8 +67,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useState, useEffect, useCallback } from "react";
+import { useMemo, useState } from "react";
 import { getPrimaryImageUrl } from "@/lib/utils";
+import {
+  useAdminCarsQuery,
+  useDeleteCarMutation,
+} from "@/hooks/queries/use-admin-cars";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100];
 
@@ -113,58 +117,40 @@ export function CarsTable({
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
-  const [cars, setCars] = useState<Car[]>([]);
-  const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [carToDelete, setCarToDelete] = useState<string | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
   const router = useRouter();
   const { showToast } = useToast();
 
-  const fetchCars = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/cars?all=1&includeAllStatuses=1");
-      if (!response.ok) {
-        throw new Error("Failed to fetch cars");
-      }
-      const result = await response.json();
+  const {
+    data: rawCars = [],
+    isLoading: loading,
+    isError,
+  } = useAdminCarsQuery();
+  const deleteCar = useDeleteCarMutation();
 
-      // Extract cars array from the API response
-      const data = result.cars || [];
-      console.log("Cars data for table:", data);
+  React.useEffect(() => {
+    if (isError) showToast("Failed to fetch cars", "error");
+  }, [isError, showToast]);
 
-      // Filter cars based on props
-      let filteredCars = data;
-      if (pending) {
-        filteredCars = filteredCars.filter(
-          (car: Car) => car.status === "Pending"
-        );
-      }
-      if (status) {
-        filteredCars = filteredCars.filter((car: Car) => car.status === status);
-      }
-      if (listingType) {
-        filteredCars = filteredCars.filter(
-          (car: Car) => car.advertisementType === listingType
-        );
-      }
-
-      setCars(filteredCars);
-    } catch (error) {
-      console.error("Error fetching cars:", error);
-      showToast("Failed to fetch cars", "error");
-      setCars([]); // Set empty array on error
-    } finally {
-      setLoading(false);
+  const cars = useMemo(() => {
+    const data = rawCars as Car[];
+    let filteredCars = [...data];
+    if (pending) {
+      filteredCars = filteredCars.filter((car) => car.status === "Pending");
     }
-  }, [listingType, pending, showToast, status]);
-
-  useEffect(() => {
-    fetchCars();
-  }, [fetchCars]);
+    if (status) {
+      filteredCars = filteredCars.filter((car) => car.status === status);
+    }
+    if (listingType) {
+      filteredCars = filteredCars.filter(
+        (car) => car.advertisementType === listingType
+      );
+    }
+    return filteredCars;
+  }, [rawCars, pending, status, listingType]);
 
   const handleCopyId = (id: string) => {
     navigator.clipboard.writeText(id);
@@ -179,32 +165,23 @@ export function CarsTable({
     router.push(`/products/cars/${id}/edit`);
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!carToDelete) return;
 
-    try {
-      setDeleteLoading(true);
-      setActionInProgress(carToDelete);
-
-      const response = await fetch(`/api/cars/${carToDelete}?isAdmin=true`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete car");
-      }
-
-      showToast("Car deleted successfully", "success");
-      fetchCars(); // Refresh the table
-    } catch (error) {
-      console.error("Error deleting car:", error);
-      showToast("Failed to delete car", "error");
-    } finally {
-      setDeleteLoading(false);
-      setActionInProgress(null);
-      setDeleteDialogOpen(false);
-      setCarToDelete(null);
-    }
+    setActionInProgress(carToDelete);
+    deleteCar.mutate(carToDelete, {
+      onSuccess: () => {
+        showToast("Car deleted successfully", "success");
+        setDeleteDialogOpen(false);
+        setCarToDelete(null);
+      },
+      onError: () => {
+        showToast("Failed to delete car", "error");
+      },
+      onSettled: () => {
+        setActionInProgress(null);
+      },
+    });
   };
 
   const confirmDelete = (id: string) => {
@@ -663,7 +640,7 @@ export function CarsTable({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteLoading}>
+            <AlertDialogCancel disabled={deleteCar.isPending}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -671,10 +648,10 @@ export function CarsTable({
                 e.preventDefault();
                 handleDelete();
               }}
-              disabled={deleteLoading}
+              disabled={deleteCar.isPending}
               className="bg-red-600 hover:bg-red-700"
             >
-              {deleteLoading ? (
+              {deleteCar.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Deleting...

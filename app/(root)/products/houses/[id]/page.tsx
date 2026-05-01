@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import {
+  useHouseDetailQuery,
+  usePatchHouseStatusMutation,
+} from "@/hooks/queries/use-admin-houses";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,9 +16,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Check, X } from "lucide-react";
+import { ArrowLeft, Check, X, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import Image from "next/image";
+import { routeSegmentToString } from "@/lib/utils";
 
 interface House {
   _id: string;
@@ -59,94 +64,45 @@ export default function HouseDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const { showToast } = useToast();
+  const routeId = routeSegmentToString(
+    params?.id as string | string[] | undefined
+  );
+
+  const {
+    data: houseData,
+    isPending: houseLoading,
+    isError: houseError,
+  } = useHouseDetailQuery(routeId);
+  const patchHouse = usePatchHouseStatusMutation();
+
   const [house, setHouse] = useState<House | null>(null);
   const [payment, setPayment] = useState<Payment | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchHouseDetails = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/house/${params.id}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch house details");
-        }
-        const raw = await response.json();
-        // GET /api/house/[id] returns { success: true, ...houseFields }
-        if (!raw.success || !raw._id) {
-          throw new Error(raw.error || "Invalid house response");
-        }
-        const { success: _s, ...housePayload } = raw;
-        setHouse(housePayload as House);
+    if (houseData) {
+      setHouse(houseData as unknown as House);
+    }
+  }, [houseData]);
 
-        // Fetch payment details if paymentId exists
-        if (housePayload.paymentId) {
-          // Check if house was created by admin (paymentId starts with "admin-created")
-          if (housePayload.paymentId.startsWith("admin-created")) {
-            // Set a special payment object for admin-created houses
-            setPayment({
-              _id: "admin-payment",
-              paymentId: housePayload.paymentId,
-              servicePrice: 0,
-              receiptUrl: "",
-              uploadedAt: housePayload.createdAt || new Date().toISOString(),
-              productId: housePayload._id,
-              productType: "house",
-              userId: "admin",
-              createdAt: housePayload.createdAt,
-              updatedAt: housePayload.updatedAt,
-            });
-          } else {
-            try {
-              const paymentResponse = await fetch(
-                `/api/payment/${housePayload.paymentId}`
-              );
-              if (paymentResponse.ok) {
-                const paymentData = await paymentResponse.json();
-                setPayment(paymentData);
-              } else {
-                console.error(
-                  "Failed to fetch payment:",
-                  await paymentResponse.text()
-                );
-                // Set a placeholder payment for failed payment fetches
-                setPayment({
-                  _id: "unknown",
-                  paymentId: housePayload.paymentId,
-                  servicePrice: 0,
-                  receiptUrl: "",
-                  uploadedAt:
-                    housePayload.createdAt || new Date().toISOString(),
-                  productId: housePayload._id,
-                  productType: "house",
-                  userId: "unknown",
-                  createdAt: housePayload.createdAt,
-                  updatedAt: housePayload.updatedAt,
-                });
-              }
-            } catch (error) {
-              console.error("Error fetching payment:", error);
-              // Set a placeholder payment for failed payment fetches
-              setPayment({
-                _id: "error",
-                paymentId: housePayload.paymentId,
-                servicePrice: 0,
-                receiptUrl: "",
-                uploadedAt:
-                  housePayload.createdAt || new Date().toISOString(),
-                productId: housePayload._id,
-                productType: "house",
-                userId: "error",
-                createdAt: housePayload.createdAt,
-                updatedAt: housePayload.updatedAt,
-              });
-            }
-          }
-        } else {
-          // No paymentId, set a default payment object for admin-created houses
+  useEffect(() => {
+    if (houseError) {
+      showToast("Failed to load house details", "error");
+    }
+  }, [houseError, showToast]);
+
+  useEffect(() => {
+    const loadPayment = async () => {
+      if (!house) {
+        setPayment(null);
+        return;
+      }
+      const housePayload = house;
+
+      if (housePayload.paymentId) {
+        if (housePayload.paymentId.startsWith("admin-created")) {
           setPayment({
-            _id: "admin-created",
-            paymentId: "admin-created",
+            _id: "admin-payment",
+            paymentId: housePayload.paymentId,
             servicePrice: 0,
             receiptUrl: "",
             uploadedAt: housePayload.createdAt || new Date().toISOString(),
@@ -156,50 +112,82 @@ export default function HouseDetailsPage() {
             createdAt: housePayload.createdAt,
             updatedAt: housePayload.updatedAt,
           });
+        } else {
+          try {
+            const paymentResponse = await fetch(
+              `/api/payment/${housePayload.paymentId}`
+            );
+            if (paymentResponse.ok) {
+              const paymentData = await paymentResponse.json();
+              setPayment(paymentData);
+            } else {
+              console.error(
+                "Failed to fetch payment:",
+                await paymentResponse.text()
+              );
+              setPayment({
+                _id: "unknown",
+                paymentId: housePayload.paymentId,
+                servicePrice: 0,
+                receiptUrl: "",
+                uploadedAt:
+                  housePayload.createdAt || new Date().toISOString(),
+                productId: housePayload._id,
+                productType: "house",
+                userId: "unknown",
+                createdAt: housePayload.createdAt,
+                updatedAt: housePayload.updatedAt,
+              });
+            }
+          } catch (error) {
+            console.error("Error fetching payment:", error);
+            setPayment({
+              _id: "error",
+              paymentId: housePayload.paymentId,
+              servicePrice: 0,
+              receiptUrl: "",
+              uploadedAt:
+                housePayload.createdAt || new Date().toISOString(),
+              productId: housePayload._id,
+              productType: "house",
+              userId: "error",
+              createdAt: housePayload.createdAt,
+              updatedAt: housePayload.updatedAt,
+            });
+          }
         }
-      } catch (error) {
-        console.error("Error fetching house details:", error);
-        showToast("Failed to load house details", "error");
-      } finally {
-        setLoading(false);
+      } else {
+        setPayment({
+          _id: "admin-created",
+          paymentId: "admin-created",
+          servicePrice: 0,
+          receiptUrl: "",
+          uploadedAt: housePayload.createdAt || new Date().toISOString(),
+          productId: housePayload._id,
+          productType: "house",
+          userId: "admin",
+          createdAt: housePayload.createdAt,
+          updatedAt: housePayload.updatedAt,
+        });
       }
     };
 
-    if (params.id) {
-      fetchHouseDetails();
-    }
-  }, [params.id, showToast]);
+    void loadPayment();
+  }, [house]);
 
-  const handleStatusChange = async (newStatus: "Pending" | "Active") => {
-    try {
-      const response = await fetch(`/api/house/${params.id}/status`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to update house status");
+  const handleStatusChange = (newStatus: "Pending" | "Active") => {
+    if (!routeId) return;
+    patchHouse.mutate(
+      { houseId: routeId, status: newStatus },
+      {
+        onSuccess: () =>
+          showToast(`House status updated to ${newStatus}`, "success"),
+        onError: () => showToast("Failed to update house status", "error"),
       }
-
-      showToast(`House status updated to ${newStatus}`, "success");
-
-      // Refresh house details
-      const updatedResponse = await fetch(`/api/house/${params.id}`);
-      if (updatedResponse.ok) {
-        const updated = await updatedResponse.json();
-        if (updated.success && updated._id) {
-          const { success: _s, ...housePayload } = updated;
-          setHouse(housePayload as House);
-        }
-      }
-    } catch (error) {
-      console.error("Error updating house status:", error);
-      showToast("Failed to update house status", "error");
-    }
+    );
   };
+
+  const loading = Boolean(routeId) && houseLoading && !house;
 
   if (loading) {
     return (
@@ -210,7 +198,10 @@ export default function HouseDetailsPage() {
             Back
           </Button>
         </div>
-        <div className="text-center">Loading house details...</div>
+        <div className="text-center flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span>Loading house details...</span>
+        </div>
       </div>
     );
   }
@@ -242,16 +233,26 @@ export default function HouseDetailsPage() {
               variant="outline"
               className="text-red-500 border-red-500 hover:bg-red-50"
               onClick={() => handleStatusChange("Pending")}
+              disabled={patchHouse.isPending}
             >
-              <X className="mr-2 h-4 w-4" />
+              {patchHouse.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <X className="mr-2 h-4 w-4" />
+              )}
               Reject
             </Button>
             <Button
               variant="default"
               className="bg-green-500 hover:bg-green-600"
               onClick={() => handleStatusChange("Active")}
+              disabled={patchHouse.isPending}
             >
-              <Check className="mr-2 h-4 w-4" />
+              {patchHouse.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="mr-2 h-4 w-4" />
+              )}
               Approve
             </Button>
           </div>

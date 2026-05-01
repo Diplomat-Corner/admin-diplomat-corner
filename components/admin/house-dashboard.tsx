@@ -1,20 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Home, DollarSign, Calendar, AlertCircle } from "lucide-react";
 import { HousesTable } from "@/components/admin/houses-table";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
-
-interface HouseStats {
-  totalHouses: number;
-  forSaleHouses: number;
-  forRentHouses: number;
-  pendingHouses: number;
-  statusCounts?: Record<string, number>;
-}
+import {
+  useHouseStatsQuery,
+  usePatchHouseStatusMutation,
+} from "@/hooks/queries/use-admin-houses";
 
 const statusTabValue = (status: string) => `status-${status}`;
 
@@ -27,66 +22,31 @@ const formatStatusLabel = (status: string) => {
 };
 
 export function HouseDashboard() {
-  const [stats, setStats] = useState<HouseStats>({
-    totalHouses: 0,
-    forSaleHouses: 0,
-    forRentHouses: 0,
-    pendingHouses: 0,
-    statusCounts: {},
-  });
-  const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
+  const { data: stats, isPending: loading, isError } = useHouseStatsQuery();
+  const patchHouse = usePatchHouseStatusMutation();
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await fetch("/api/house/stats");
-        if (!response.ok) {
-          throw new Error("Failed to fetch house statistics");
-        }
-        const data = await response.json();
-        setStats(data);
-      } catch (error) {
-        console.error("Error fetching house statistics:", error);
-        showToast("Failed to load house statistics", "error");
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (isError) {
+      showToast("Failed to load house statistics", "error");
+    }
+  }, [isError, showToast]);
 
-    fetchStats();
-  }, [showToast]);
-
-  const handleStatusChange = async (
+  const handleStatusChange = (
     houseId: string,
     newStatus: "Pending" | "Active"
   ) => {
-    try {
-      const response = await fetch(`/api/house/${houseId}/status`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to update house status");
+    patchHouse.mutate(
+      { houseId, status: newStatus },
+      {
+        onSuccess: () =>
+          showToast(`House status updated to ${newStatus}`, "success"),
+        onError: () => showToast("Failed to update house status", "error"),
       }
-
-      showToast(`House status updated to ${newStatus}`, "success");
-
-      // Refresh stats after status change
-      const statsResponse = await fetch("/api/house/stats");
-      if (statsResponse.ok) {
-        const data = await statsResponse.json();
-        setStats(data);
-      }
-    } catch (error) {
-      console.error("Error updating house status:", error);
-      showToast("Failed to update house status", "error");
-    }
+    );
   };
+
+  const statusCounts = stats?.statusCounts ?? {};
 
   return (
     <div className="space-y-6">
@@ -98,7 +58,7 @@ export function HouseDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {loading ? "..." : stats.totalHouses}
+              {loading ? "..." : (stats?.totalHouses ?? 0)}
             </div>
           </CardContent>
         </Card>
@@ -109,7 +69,7 @@ export function HouseDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {loading ? "..." : stats.forSaleHouses}
+              {loading ? "..." : (stats?.forSaleHouses ?? 0)}
             </div>
           </CardContent>
         </Card>
@@ -120,7 +80,7 @@ export function HouseDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {loading ? "..." : stats.forRentHouses}
+              {loading ? "..." : (stats?.forRentHouses ?? 0)}
             </div>
           </CardContent>
         </Card>
@@ -133,7 +93,7 @@ export function HouseDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {loading ? "..." : stats.pendingHouses}
+              {loading ? "..." : (stats?.pendingHouses ?? 0)}
             </div>
           </CardContent>
         </Card>
@@ -144,7 +104,7 @@ export function HouseDashboard() {
           <TabsTrigger value="all">All Houses</TabsTrigger>
           <TabsTrigger value="for-sale">For Sale</TabsTrigger>
           <TabsTrigger value="for-rent">For Rent</TabsTrigger>
-          {Object.keys(stats.statusCounts ?? {})
+          {Object.keys(statusCounts)
             .sort((a, b) => a.localeCompare(b))
             .map((status) => (
               <TabsTrigger key={status} value={statusTabValue(status)}>
@@ -161,7 +121,7 @@ export function HouseDashboard() {
         <TabsContent value="for-rent" className="space-y-4">
           <HousesTable listingType="rent" />
         </TabsContent>
-        {Object.keys(stats.statusCounts ?? {})
+        {Object.keys(statusCounts)
           .sort((a, b) => a.localeCompare(b))
           .map((status) => (
             <TabsContent

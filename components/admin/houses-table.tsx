@@ -56,7 +56,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useMemo, useState } from "react";
 import { useToast } from "@/components/ui/toast";
 import {
   AlertDialog,
@@ -69,6 +69,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { getPrimaryImageUrl } from "@/lib/utils";
+import {
+  useAdminHousesQuery,
+  useDeleteHouseMutation,
+} from "@/hooks/queries/use-admin-houses";
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100];
 
@@ -119,66 +123,48 @@ export function HousesTable({
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
-  const [houses, setHouses] = useState<House[]>([]);
-  const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [houseToDelete, setHouseToDelete] = useState<string | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
   const router = useRouter();
   const { showToast } = useToast();
 
-  const fetchHouses = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(
-        "/api/house?all=1&includeAllStatuses=1"
+  const {
+    data: rawHouses = [],
+    isLoading: loading,
+    isError,
+  } = useAdminHousesQuery();
+  const deleteHouse = useDeleteHouseMutation();
+
+  React.useEffect(() => {
+    if (isError) showToast("Failed to fetch houses", "error");
+  }, [isError, showToast]);
+
+  const houses = useMemo(() => {
+    const list = rawHouses as House[];
+    let filteredHouses = [...list];
+    if (pending) {
+      filteredHouses = filteredHouses.filter(
+        (house) => house.status === "Pending"
       );
-      if (!response.ok) {
-        throw new Error("Failed to fetch houses");
-      }
-      const data = await response.json();
-      const list: House[] = Array.isArray(data.houses)
-        ? data.houses
-        : Array.isArray(data)
-          ? data
-          : [];
-
-      // Filter client-side based on props (chain so pending + sale/rent both apply)
-      let filteredHouses = list;
-      if (pending) {
-        filteredHouses = filteredHouses.filter(
-          (house) => house.status === "Pending"
-        );
-      }
-      if (status) {
-        filteredHouses = filteredHouses.filter(
-          (house) => house.status === status
-        );
-      }
-      if (listingType === "sale") {
-        filteredHouses = filteredHouses.filter(
-          (house) => house.advertisementType === "Sale"
-        );
-      } else if (listingType === "rent") {
-        filteredHouses = filteredHouses.filter(
-          (house) => house.advertisementType === "Rent"
-        );
-      }
-
-      setHouses(filteredHouses);
-    } catch (error) {
-      console.error("Error fetching houses:", error);
-      showToast("Failed to fetch houses", "error");
-    } finally {
-      setLoading(false);
     }
-  }, [listingType, pending, showToast, status]);
-
-  useEffect(() => {
-    fetchHouses();
-  }, [fetchHouses]);
+    if (status) {
+      filteredHouses = filteredHouses.filter(
+        (house) => house.status === status
+      );
+    }
+    if (listingType === "sale") {
+      filteredHouses = filteredHouses.filter(
+        (house) => house.advertisementType === "Sale"
+      );
+    } else if (listingType === "rent") {
+      filteredHouses = filteredHouses.filter(
+        (house) => house.advertisementType === "Rent"
+      );
+    }
+    return filteredHouses;
+  }, [rawHouses, pending, status, listingType]);
 
   const handleCopyId = (id: string) => {
     navigator.clipboard.writeText(id);
@@ -193,32 +179,23 @@ export function HousesTable({
     router.push(`/products/houses/${id}/edit`);
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!houseToDelete) return;
 
-    try {
-      setDeleteLoading(true);
-      setActionInProgress(houseToDelete);
-
-      const response = await fetch(`/api/house/${houseToDelete}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete house");
-      }
-
-      showToast("House deleted successfully", "success");
-      fetchHouses(); // Refresh the table
-    } catch (error) {
-      console.error("Error deleting house:", error);
-      showToast("Failed to delete house", "error");
-    } finally {
-      setDeleteLoading(false);
-      setActionInProgress(null);
-      setDeleteDialogOpen(false);
-      setHouseToDelete(null);
-    }
+    setActionInProgress(houseToDelete);
+    deleteHouse.mutate(houseToDelete, {
+      onSuccess: () => {
+        showToast("House deleted successfully", "success");
+        setDeleteDialogOpen(false);
+        setHouseToDelete(null);
+      },
+      onError: () => {
+        showToast("Failed to delete house", "error");
+      },
+      onSettled: () => {
+        setActionInProgress(null);
+      },
+    });
   };
 
   const confirmDelete = (id: string) => {
@@ -676,7 +653,7 @@ export function HousesTable({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteLoading}>
+            <AlertDialogCancel disabled={deleteHouse.isPending}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -684,10 +661,10 @@ export function HousesTable({
                 e.preventDefault();
                 handleDelete();
               }}
-              disabled={deleteLoading}
+              disabled={deleteHouse.isPending}
               className="bg-red-600 hover:bg-red-700"
             >
-              {deleteLoading ? (
+              {deleteHouse.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Deleting...

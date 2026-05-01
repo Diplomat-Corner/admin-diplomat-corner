@@ -1,9 +1,9 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useReviewQuery } from "@/hooks/queries/use-reviews";
 
 interface ReviewDetailsProps {
   reviewId: string;
@@ -25,14 +25,7 @@ interface Review {
 }
 
 export function ReviewDetails({ reviewId }: ReviewDetailsProps) {
-  const { data: review, isLoading } = useQuery<Review>({
-    queryKey: ["review", reviewId],
-    queryFn: async () => {
-      const response = await fetch(`/api/reviews/${reviewId}`);
-      if (!response.ok) throw new Error("Failed to fetch review");
-      return response.json();
-    },
-  });
+  const { data: review, isLoading } = useReviewQuery<Review>(reviewId);
 
   if (isLoading) {
     return (

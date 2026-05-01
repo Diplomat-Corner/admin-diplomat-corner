@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -35,6 +34,10 @@ import {
   EntityType,
 } from "@/lib/models/report.model";
 import { ReviewDetails } from "@/components/reports/review-details";
+import {
+  useReportsQuery,
+  usePatchReportMutation,
+} from "@/hooks/queries/use-reports";
 
 interface Report {
   _id: string;
@@ -74,70 +77,41 @@ export default function ReportsPage() {
   >("all");
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [adminNotes, setAdminNotes] = useState("");
-  const [isUpdating, setIsUpdating] = useState(false);
 
-  const {
-    data: reports,
-    isLoading,
-    refetch,
-  } = useQuery<Report[]>({
-    queryKey: ["reports", selectedStatus, selectedEntityType],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (selectedStatus !== "all") params.append("status", selectedStatus);
-      if (selectedEntityType !== "all")
-        params.append("entityType", selectedEntityType);
+  const filters = {
+    status: selectedStatus,
+    entityType: selectedEntityType,
+  };
 
-      const response = await fetch(`/api/reports?${params.toString()}`);
-      if (!response.ok) throw new Error("Failed to fetch reports");
-      return response.json();
-    },
-  });
+  const { data: reports, isLoading } = useReportsQuery<Report[]>(filters);
+  const patchReport = usePatchReportMutation();
 
-  const handleStatusChange = async (
+  const handleStatusChange = (
     reportId: string,
     newStatus: ReportStatus
   ) => {
-    try {
-      setIsUpdating(true);
-      const response = await fetch(`/api/reports/${reportId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      if (!response.ok) throw new Error("Failed to update status");
-
-      toast.success("Status updated successfully");
-      refetch();
-    } catch (error) {
-      toast.error("Failed to update status");
-    } finally {
-      setIsUpdating(false);
-    }
+    patchReport.mutate(
+      { reportId, body: { status: newStatus } },
+      {
+        onSuccess: () => toast.success("Status updated successfully"),
+        onError: () => toast.error("Failed to update status"),
+      }
+    );
   };
 
-  const handleUpdateNotes = async () => {
+  const handleUpdateNotes = () => {
     if (!selectedReport) return;
 
-    try {
-      setIsUpdating(true);
-      const response = await fetch(`/api/reports/${selectedReport._id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminNotes }),
-      });
-
-      if (!response.ok) throw new Error("Failed to update notes");
-
-      toast.success("Notes updated successfully");
-      refetch();
-      setSelectedReport(null);
-    } catch (error) {
-      toast.error("Failed to update notes");
-    } finally {
-      setIsUpdating(false);
-    }
+    patchReport.mutate(
+      { reportId: selectedReport._id, body: { adminNotes } },
+      {
+        onSuccess: () => {
+          toast.success("Notes updated successfully");
+          setSelectedReport(null);
+        },
+        onError: () => toast.error("Failed to update notes"),
+      }
+    );
   };
 
   return (
@@ -245,10 +219,10 @@ export default function ReportsPage() {
                           />
                           <Button
                             onClick={handleUpdateNotes}
-                            disabled={isUpdating}
+                            disabled={patchReport.isPending}
                             className="w-full"
                           >
-                            {isUpdating ? (
+                            {patchReport.isPending ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                               "Save Notes"
@@ -262,7 +236,7 @@ export default function ReportsPage() {
                       onValueChange={(value) =>
                         handleStatusChange(report._id, value as ReportStatus)
                       }
-                      disabled={isUpdating}
+                      disabled={patchReport.isPending}
                     >
                       <SelectTrigger className="w-[140px]">
                         <SelectValue />

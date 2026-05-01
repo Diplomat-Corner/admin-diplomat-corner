@@ -2,6 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import {
+  useCarDetailQuery,
+  useDeleteCarMutation,
+  usePatchCarStatusMutation,
+} from "@/hooks/queries/use-admin-cars";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,6 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { routeSegmentToString } from "@/lib/utils";
 
 interface Car {
   _id: string;
@@ -80,237 +86,150 @@ export default function CarDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { showToast } = useToast();
+  const routeId = routeSegmentToString(
+    params?.id as string | string[] | undefined
+  );
+  const {
+    data: carData,
+    isPending: carLoading,
+    isError: carError,
+  } = useCarDetailQuery(routeId);
+  const patchCar = usePatchCarStatusMutation();
+  const deleteCar = useDeleteCarMutation();
+
   const [car, setCar] = useState<Car | null>(null);
   const [payment, setPayment] = useState<Payment | null>(null);
-  const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
 
   useEffect(() => {
-    const fetchCarDetails = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/cars/${params.id}`);
+    if (carData) {
+      setCar(carData as unknown as Car);
+    }
+  }, [carData]);
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch car");
-        }
+  useEffect(() => {
+    if (carError) {
+      showToast("Failed to load car", "error");
+    }
+  }, [carError, showToast]);
 
-        const result = await response.json();
+  useEffect(() => {
+    const loadPayment = async () => {
+      if (!car) {
+        setPayment(null);
+        return;
+      }
+      const carDataInner = car;
 
-        // Check if the API response has the expected format
-        if (!result.success) {
-          throw new Error(result.error || "Invalid response from server");
-        }
-
-        // Get the car data from the response
-        const carData = result.car;
-
-        if (!carData || !carData._id) {
-          throw new Error("Invalid car data received");
-        }
-
-        setCar(carData);
-
-        // Fetch payment details if paymentId exists
-        if (carData.paymentId) {
-          // Check if car was created by admin (paymentId starts with "admin-created")
-          if (carData.paymentId.startsWith("admin-created")) {
-            // Set a special payment object for admin-created cars
-            setPayment({
-              _id: "admin-payment",
-              paymentId: carData.paymentId,
-              servicePrice: 0,
-              receiptUrl: "",
-              uploadedAt: carData.createdAt || new Date().toISOString(),
-              productId: carData._id,
-              productType: "car",
-              userId: "admin",
-              createdAt: carData.createdAt,
-              updatedAt: carData.updatedAt,
-            });
-          } else {
-            try {
-              const paymentResponse = await fetch(
-                `/api/payment/${carData.paymentId}`
-              );
-              if (paymentResponse.ok) {
-                const paymentData = await paymentResponse.json();
-                setPayment(paymentData);
-              } else {
-                console.error(
-                  "Failed to fetch payment:",
-                  await paymentResponse.text()
-                );
-                // Set a placeholder payment for failed payment fetches
-                setPayment({
-                  _id: "unknown",
-                  paymentId: carData.paymentId,
-                  servicePrice: 0,
-                  receiptUrl: "",
-                  uploadedAt: carData.createdAt || new Date().toISOString(),
-                  productId: carData._id,
-                  productType: "car",
-                  userId: "unknown",
-                  createdAt: carData.createdAt,
-                  updatedAt: carData.updatedAt,
-                });
-              }
-            } catch (error) {
-              console.error("Error fetching payment:", error);
-              // Set a placeholder payment for failed payment fetches
-              setPayment({
-                _id: "error",
-                paymentId: carData.paymentId,
-                servicePrice: 0,
-                receiptUrl: "",
-                uploadedAt: carData.createdAt || new Date().toISOString(),
-                productId: carData._id,
-                productType: "car",
-                userId: "error",
-                createdAt: carData.createdAt,
-                updatedAt: carData.updatedAt,
-              });
-            }
-          }
-        } else {
-          // No paymentId, set a default payment object for admin-created cars
+      if (carDataInner.paymentId) {
+        if (carDataInner.paymentId.startsWith("admin-created")) {
           setPayment({
-            _id: "admin-created",
-            paymentId: "admin-created",
+            _id: "admin-payment",
+            paymentId: carDataInner.paymentId,
             servicePrice: 0,
             receiptUrl: "",
-            uploadedAt: carData.createdAt || new Date().toISOString(),
-            productId: carData._id,
+            uploadedAt: carDataInner.createdAt || new Date().toISOString(),
+            productId: carDataInner._id,
             productType: "car",
             userId: "admin",
-            createdAt: carData.createdAt,
-            updatedAt: carData.updatedAt,
+            createdAt: carDataInner.createdAt,
+            updatedAt: carDataInner.updatedAt,
           });
+        } else {
+          try {
+            const paymentResponse = await fetch(
+              `/api/payment/${carDataInner.paymentId}`
+            );
+            if (paymentResponse.ok) {
+              const paymentData = await paymentResponse.json();
+              setPayment(paymentData);
+            } else {
+              console.error(
+                "Failed to fetch payment:",
+                await paymentResponse.text()
+              );
+              setPayment({
+                _id: "unknown",
+                paymentId: carDataInner.paymentId,
+                servicePrice: 0,
+                receiptUrl: "",
+                uploadedAt: carDataInner.createdAt || new Date().toISOString(),
+                productId: carDataInner._id,
+                productType: "car",
+                userId: "unknown",
+                createdAt: carDataInner.createdAt,
+                updatedAt: carDataInner.updatedAt,
+              });
+            }
+          } catch (error) {
+            console.error("Error fetching payment:", error);
+            setPayment({
+              _id: "error",
+              paymentId: carDataInner.paymentId,
+              servicePrice: 0,
+              receiptUrl: "",
+              uploadedAt: carDataInner.createdAt || new Date().toISOString(),
+              productId: carDataInner._id,
+              productType: "car",
+              userId: "error",
+              createdAt: carDataInner.createdAt,
+              updatedAt: carDataInner.updatedAt,
+            });
+          }
         }
-      } catch (error) {
-        console.error("Error fetching car:", error);
-        showToast("Failed to load car", "error");
-      } finally {
-        setLoading(false);
+      } else {
+        setPayment({
+          _id: "admin-created",
+          paymentId: "admin-created",
+          servicePrice: 0,
+          receiptUrl: "",
+          uploadedAt: carDataInner.createdAt || new Date().toISOString(),
+          productId: carDataInner._id,
+          productType: "car",
+          userId: "admin",
+          createdAt: carDataInner.createdAt,
+          updatedAt: carDataInner.updatedAt,
+        });
       }
     };
 
-    if (params.id) {
-      fetchCarDetails();
-    }
-  }, [params.id, showToast]);
+    void loadPayment();
+  }, [car]);
 
-  const handleDelete = async () => {
-    try {
-      setDeleteLoading(true);
-
-      const response = await fetch(`/api/cars/${car?._id}?isAdmin=true`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete car");
-      }
-
-      showToast("Car deleted successfully", "success");
-      router.push("/products/cars");
-    } catch (error) {
-      console.error("Error deleting car:", error);
-      showToast("Failed to delete car", "error");
-    } finally {
-      setDeleteLoading(false);
-      setDeleteDialogOpen(false);
-    }
+  const handleDelete = () => {
+    if (!car) return;
+    deleteCar.mutate(car._id, {
+      onSuccess: () => {
+        showToast("Car deleted successfully", "success");
+        router.push("/products/cars");
+        setDeleteDialogOpen(false);
+      },
+      onError: () => {
+        showToast("Failed to delete car", "error");
+        setDeleteDialogOpen(false);
+      },
+    });
   };
 
-  const handleStatusChange = async (newStatus: "Pending" | "Active") => {
-    try {
-      if (!car) return;
-
-      setStatusUpdateLoading(true);
-
-      const response = await fetch(`/api/cars/${car._id}/status`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      // Check if the response is JSON before parsing
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.includes("application/json")) {
-        try {
-          const result = await response.json();
-
-          if (!response.ok) {
-            throw new Error(
-              result?.error || `Server error: ${response.status}`
-            );
-          }
-
-          // Success - update the car data with the response
-          if (result?.car) {
-            setCar(result.car);
-            showToast(`Car status updated to ${newStatus}`, "success");
-          } else {
-            // If for some reason the API didn't return the updated car, fetch it
-            await refreshCarData(car._id);
-          }
-        } catch (jsonError) {
-          console.error("Error parsing JSON:", jsonError);
-          throw new Error("Invalid JSON response from server");
-        }
-      } else {
-        // Handle non-JSON response (likely HTML error page)
-        const text = await response.text();
-        console.error(
-          "Server returned non-JSON response:",
-          text.substring(0, 100) + "..."
-        );
-        throw new Error("Server error. Response was not in JSON format.");
+  const handleStatusChange = (newStatus: "Pending" | "Active") => {
+    if (!car) return;
+    patchCar.mutate(
+      { carId: car._id, status: newStatus },
+      {
+        onSuccess: () =>
+          showToast(`Car status updated to ${newStatus}`, "success"),
+        onError: (error) =>
+          showToast(
+            `Failed to update car status: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`,
+            "error"
+          ),
       }
-    } catch (error) {
-      console.error("Error updating car status:", error);
-      showToast(
-        `Failed to update car status: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        "error"
-      );
-    } finally {
-      setStatusUpdateLoading(false);
-    }
+    );
   };
 
-  // Helper function to refresh car data
-  const refreshCarData = async (carId: string) => {
-    try {
-      const updatedResponse = await fetch(`/api/cars/${carId}`);
-      const contentType = updatedResponse.headers.get("content-type");
-
-      if (contentType && contentType.includes("application/json")) {
-        const data = await updatedResponse.json();
-        const carPayload = data.car ?? data;
-        if (data.success && carPayload?._id) {
-          setCar(carPayload);
-          showToast(`Car status updated successfully`, "success");
-        } else {
-          throw new Error("Invalid car data format in response");
-        }
-      } else {
-        throw new Error("Invalid response format when fetching updated car");
-      }
-    } catch (fetchError) {
-      console.error("Error fetching updated car:", fetchError);
-      showToast(
-        "Car status was updated, but we couldn't refresh the view. Please reload the page.",
-        "info"
-      );
-    }
-  };
+  const loading = Boolean(routeId) && carLoading && !car;
 
   if (loading) {
     return (
@@ -381,9 +300,9 @@ export default function CarDetailPage() {
                 className="text-red-500 border-red-500 hover:bg-red-50"
                 onClick={() => handleStatusChange("Pending")}
                 size="sm"
-                disabled={statusUpdateLoading}
+                disabled={patchCar.isPending}
               >
-                {statusUpdateLoading ? (
+                {patchCar.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <X className="h-4 w-4" />
@@ -395,9 +314,9 @@ export default function CarDetailPage() {
                 className="bg-green-500 hover:bg-green-600"
                 onClick={() => handleStatusChange("Active")}
                 size="sm"
-                disabled={statusUpdateLoading}
+                disabled={patchCar.isPending}
               >
-                {statusUpdateLoading ? (
+                {patchCar.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Check className="h-4 w-4" />
@@ -756,7 +675,7 @@ export default function CarDetailPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteLoading}>
+            <AlertDialogCancel disabled={deleteCar.isPending}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -764,10 +683,10 @@ export default function CarDetailPage() {
                 e.preventDefault();
                 handleDelete();
               }}
-              disabled={deleteLoading}
+              disabled={deleteCar.isPending}
               className="bg-red-600 hover:bg-red-700"
             >
-              {deleteLoading ? (
+              {deleteCar.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Deleting...
