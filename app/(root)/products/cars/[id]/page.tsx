@@ -264,7 +264,7 @@ export default function CarDetailPage() {
   }
 
   return (
-    <div className="main-content p-3">
+    <div className="main-content space-y-4 p-4 md:p-8 bg-slate-50/60">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center">
           <Link href="/products/cars">
@@ -343,6 +343,42 @@ export default function CarDetailPage() {
             </>
           )}
         </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Listing Price</CardDescription>
+            <CardTitle className="text-xl">
+              {new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: car.currency || "USD",
+              }).format(car.price)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Status</CardDescription>
+            <CardTitle className="text-xl">{car.status}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Advertisement Type</CardDescription>
+            <CardTitle className="text-xl">For {car.advertisementType}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Last Updated</CardDescription>
+            <CardTitle className="text-xl">
+              {car.updatedAt
+                ? new Date(car.updatedAt).toLocaleDateString()
+                : "Not available"}
+            </CardTitle>
+          </CardHeader>
+        </Card>
       </div>
 
       <div className="grid gap-3 grid-cols-1 md:grid-cols-3">

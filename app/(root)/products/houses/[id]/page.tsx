@@ -221,7 +221,7 @@ export default function HouseDetailsPage() {
   }
 
   return (
-    <div className="main-content p-4 md:p-8">
+    <div className="main-content space-y-4 p-4 md:p-8 bg-slate-50/60">
       <div className="flex items-center justify-between mb-6">
         <Button variant="outline" onClick={() => router.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -257,6 +257,42 @@ export default function HouseDetailsPage() {
             </Button>
           </div>
         )}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Listing Price</CardDescription>
+            <CardTitle className="text-xl">
+              {new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: house.currency || "USD",
+              }).format(house.price)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Status</CardDescription>
+            <CardTitle className="text-xl">{house.status}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>House Type</CardDescription>
+            <CardTitle className="text-xl">{house.houseType}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Last Updated</CardDescription>
+            <CardTitle className="text-xl">
+              {house.updatedAt
+                ? new Date(house.updatedAt).toLocaleDateString()
+                : "Not available"}
+            </CardTitle>
+          </CardHeader>
+        </Card>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
