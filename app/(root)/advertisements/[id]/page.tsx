@@ -224,7 +224,7 @@ export default function AdvertisementDetailPage() {
     });
 
   return (
-    <div className="main-content space-y-4 p-4 md:p-8">
+    <div className="main-content space-y-4 p-4 md:p-8 bg-slate-50/60">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => router.back()}>
@@ -277,6 +277,56 @@ export default function AdvertisementDetailPage() {
             )}
           </Button>
         </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Status</CardTitle>
+            <div>
+              <Badge
+                className={
+                  effective === "Active"
+                    ? "bg-green-500"
+                    : effective === "Scheduled"
+                      ? "bg-blue-500"
+                      : effective === "Inactive"
+                        ? "bg-yellow-500"
+                        : effective === "Expired"
+                          ? "bg-red-500"
+                          : "bg-gray-500"
+                }
+              >
+                {effective}
+              </Badge>
+            </div>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Views</CardTitle>
+            <p className="text-2xl font-bold">{advertisement.viewCount}</p>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Clicks</CardTitle>
+            <p className="text-2xl font-bold">{advertisement.clickCount}</p>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">CTR</CardTitle>
+            <p className="text-2xl font-bold">
+              {advertisement.viewCount > 0
+                ? `${(
+                    (advertisement.clickCount / advertisement.viewCount) *
+                    100
+                  ).toFixed(1)}%`
+                : "0%"}
+            </p>
+          </CardHeader>
+        </Card>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
