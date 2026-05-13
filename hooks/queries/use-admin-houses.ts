@@ -7,6 +7,7 @@ import {
   normalizeMongoId,
   unwrapApiListingPayload,
 } from "@/lib/utils";
+import { sortListingsLatestFirst } from "@/lib/listings/listing-recency";
 
 const ADMIN_HOUSES_URL = "/api/house?all=1&includeAllStatuses=1";
 
@@ -21,6 +22,7 @@ export function useAdminHousesQuery() {
       if (Array.isArray(data.houses)) return data.houses as unknown[];
       return [];
     },
+    select: (rows) => sortListingsLatestFirst(rows as Record<string, unknown>[]) as unknown[],
   });
 }
 

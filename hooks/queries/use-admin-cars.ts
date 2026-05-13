@@ -7,6 +7,7 @@ import {
   normalizeMongoId,
   unwrapApiListingPayload,
 } from "@/lib/utils";
+import { sortListingsLatestFirst } from "@/lib/listings/listing-recency";
 
 const ADMIN_CARS_URL = "/api/cars?all=1&includeAllStatuses=1";
 
@@ -20,6 +21,7 @@ export function useAdminCarsQuery() {
       }>(ADMIN_CARS_URL);
       return (result.cars ?? []) as unknown[];
     },
+    select: (rows) => sortListingsLatestFirst(rows as Record<string, unknown>[]) as unknown[],
   });
 }
 

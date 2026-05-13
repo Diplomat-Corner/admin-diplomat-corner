@@ -7,6 +7,7 @@ import { ProductsTable, type Product } from "@/components/admin/products-table";
 import { ProductCard } from "@/components/admin/products-card";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
+import { sortListingsLatestFirst } from "@/lib/listings/listing-recency";
 
 interface ProductStats {
   total: number;
@@ -90,7 +91,9 @@ export default function Page() {
         cars: cars.length,
         pending: pendingCars + pendingHouses,
       });
-      setAllProducts([...houses, ...cars] as Product[]);
+      setAllProducts(
+        sortListingsLatestFirst([...houses, ...cars] as Product[])
+      );
     } catch (error) {
       console.error("Error fetching product statistics:", error);
       setStats({

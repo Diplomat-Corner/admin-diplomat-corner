@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useCallback } from "react";
+import { sortListingsLatestFirst } from "@/lib/listings/listing-recency";
 
 export type Product = {
   _id: string;
@@ -107,7 +108,7 @@ export function ProductsTable({
         type: type || "house", // Default to house if no type specified
       }));
 
-      setData(typedProducts);
+      setData(sortListingsLatestFirst(typedProducts));
     } catch (error) {
       console.error("Error fetching products:", error);
       setData([]);
@@ -118,7 +119,7 @@ export function ProductsTable({
 
   React.useEffect(() => {
     if (propData) {
-      setData(propData);
+      setData(sortListingsLatestFirst(propData));
       setLoading(false);
       return;
     }

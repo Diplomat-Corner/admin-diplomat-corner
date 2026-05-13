@@ -19,6 +19,7 @@ import { IHouse } from "@/lib/models/house.model";
 import { ICar } from "@/lib/models/car.model";
 import { ProductOverview } from "@/components/admin/product-overview";
 import { Skeleton } from "@/components/ui/skeleton";
+import { sortListingsLatestFirst } from "@/lib/listings/listing-recency";
 
 // Loading components
 function StatsCardLoading() {
@@ -121,8 +122,12 @@ export default function DashboardPage() {
         const housesData = await housesResponse.json();
         const carsData = await carsResponse.json();
 
-        setHouses(Array.isArray(housesData.houses) ? housesData.houses : []);
-        setCars(Array.isArray(carsData.cars) ? carsData.cars : []);
+        const nextHouses = Array.isArray(housesData.houses)
+          ? housesData.houses
+          : [];
+        const nextCars = Array.isArray(carsData.cars) ? carsData.cars : [];
+        setHouses(sortListingsLatestFirst(nextHouses as IHouse[]));
+        setCars(sortListingsLatestFirst(nextCars as ICar[]));
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {

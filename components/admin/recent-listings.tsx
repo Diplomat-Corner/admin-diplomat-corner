@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { IHouse } from "@/lib/models/house.model";
 import { ICar } from "@/lib/models/car.model";
 import { useToast } from "@/components/ui/toast";
+import { sortListingsLatestFirst } from "@/lib/listings/listing-recency";
 
 interface RecentListingsProps {
   houses: IHouse[];
@@ -18,12 +19,10 @@ export function RecentListings({ houses, cars }: RecentListingsProps) {
   const router = useRouter();
   const { showToast } = useToast();
 
-  // Combine and sort houses and cars by creation date
-  const allListings = [
-    ...houses.map(house => ({ ...house, type: 'house' as const })),
-    ...cars.map(car => ({ ...car, type: 'car' as const }))
-  ].sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime())
-   .slice(0, 4); // Show only the 4 most recent listings
+  const allListings = sortListingsLatestFirst([
+    ...houses.map((house) => ({ ...house, type: "house" as const })),
+    ...cars.map((car) => ({ ...car, type: "car" as const })),
+  ]).slice(0, 4);
 
   const handleApprove = async (id: string, type: 'house' | 'car') => {
     try {
