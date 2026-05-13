@@ -128,21 +128,12 @@ export function ThreadDetailsPanel(props: { thread: Thread | null }) {
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
-        <TabsList className="mx-2 mt-2 grid h-9 w-auto grid-cols-5 rounded-lg bg-muted/80 p-0.5">
+        <TabsList className="mx-2 mt-2 grid h-9 w-auto grid-cols-2 rounded-lg bg-muted/80 p-0.5">
           <TabsTrigger value="profile" className="text-[10px] px-1">
             Profile
           </TabsTrigger>
-          <TabsTrigger value="insights" className="text-[10px] px-1">
-            Insights
-          </TabsTrigger>
           <TabsTrigger value="timeline" className="text-[10px] px-1">
             Timeline
-          </TabsTrigger>
-          <TabsTrigger value="team" className="text-[10px] px-1">
-            Team
-          </TabsTrigger>
-          <TabsTrigger value="calls" className="text-[10px] px-1">
-            Calls
           </TabsTrigger>
         </TabsList>
 
@@ -195,12 +186,6 @@ export function ThreadDetailsPanel(props: { thread: Thread | null }) {
             )}
           </TabsContent>
 
-          <TabsContent value="insights" className="m-0 p-4">
-            <p className="text-xs text-muted-foreground">
-              Metrics and engagement insights will appear here when available.
-            </p>
-          </TabsContent>
-
           <TabsContent value="timeline" className="m-0 p-4">
             <ul className="space-y-0">
               {timelineItems.map((item, i) => (
@@ -226,14 +211,6 @@ export function ThreadDetailsPanel(props: { thread: Thread | null }) {
             {timelineItems.length === 0 && (
               <p className="text-xs text-muted-foreground">No timeline events yet.</p>
             )}
-          </TabsContent>
-
-          <TabsContent value="team" className="m-0 p-4">
-            <p className="text-xs text-muted-foreground">Team assignments — coming soon.</p>
-          </TabsContent>
-
-          <TabsContent value="calls" className="m-0 p-4">
-            <p className="text-xs text-muted-foreground">Call history — coming soon.</p>
           </TabsContent>
         </ScrollArea>
       </Tabs>
