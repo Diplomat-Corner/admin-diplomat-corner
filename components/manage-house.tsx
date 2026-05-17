@@ -341,10 +341,10 @@ const ManageHouse: React.FC<ManageHouseProps> = ({
         }
       }
 
-      // Add multiple files
+      // Same field name repeated — backend reads multipart key "files"
       if (selectedFiles.length > 0) {
-        selectedFiles.forEach((file, index) => {
-          apiFormData.append(`files[${index}]`, file);
+        selectedFiles.forEach((file) => {
+          apiFormData.append("files", file);
         });
       }
 

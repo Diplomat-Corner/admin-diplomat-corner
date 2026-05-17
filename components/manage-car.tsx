@@ -336,15 +336,10 @@ const ManageCar: React.FC<ManageCarProps> = ({
         }
       }
 
-      // Add multiple files
+      // Multiple parts with the same field name "files" — matches diplomat-api (form.File["files"])
       if (selectedFiles.length > 0) {
-        // Log for debugging
-        console.log(
-          `Adding ${selectedFiles.length} files to form data with keys files[0], files[1], etc.`
-        );
-
-        selectedFiles.forEach((file, index) => {
-          apiFormData.append(`files[${index}]`, file);
+        selectedFiles.forEach((file) => {
+          apiFormData.append("files", file);
         });
       }
 

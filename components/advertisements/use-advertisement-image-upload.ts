@@ -16,7 +16,14 @@ async function uploadOneImage(file: File): Promise<string> {
   if (!response.ok) {
     throw new Error(result.error || "Failed to upload image");
   }
-  return result.imageUrl as string;
+  const url =
+    (typeof result.imageUrl === "string" && result.imageUrl) ||
+    (typeof result.url === "string" && result.url) ||
+    (typeof result.publicUrl === "string" && result.publicUrl);
+  if (!url) {
+    throw new Error("Upload succeeded but no image URL in response");
+  }
+  return url;
 }
 
 export function useAdvertisementImageUpload(options: {
